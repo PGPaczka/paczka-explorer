@@ -254,16 +254,16 @@ export default function BrowsePage() {
 
       {/* Global search results */}
       {searchMode === 'global' && search.length >= 2 && (
-        <Paper variant="outlined" sx={{ mb: 3 }}>
+        <Paper variant="outlined" sx={{ mb: 3, maxHeight: 400, display: 'flex', flexDirection: 'column' }}>
           {globalSearchLoading && <LinearProgress />}
           {globalResults && (
             <>
-              <Box sx={{ p: 1.5, bgcolor: 'action.hover' }}>
+              <Box sx={{ p: 1.5, bgcolor: 'action.hover', flexShrink: 0 }}>
                 <Typography variant="body2" color="text.secondary">
                   🔍 Znaleziono <strong>{globalResults.total}</strong> wyników dla „{globalResults.query}"
                 </Typography>
               </Box>
-              <List disablePadding>
+              <List disablePadding sx={{ overflow: 'auto', flexGrow: 1 }}>
                 {globalResults.results.map((file) => (
                   <ListItem
                     key={file.rel}

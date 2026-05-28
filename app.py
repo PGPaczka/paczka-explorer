@@ -29,11 +29,13 @@ MAX_UPLOAD_SIZE = int(os.getenv("MAX_UPLOAD_MB", "10")) * 1024 * 1024
 PORT = int(os.getenv("PORT", "8081"))
 GITHUB_PR_URL = os.getenv("GITHUB_PR_URL", "https://github.com/dommilosz/Paczka-eti-pg/pulls")
 
-PREVIEWABLE_TEXT = {'.txt','.md','.py','.java','.c','.cpp','.cs','.js','.html','.css',
+PREVIEWABLE_TEXT = {'.txt','.py','.java','.c','.cpp','.cs','.js','.html','.css',
     '.h','.asm','.m','.sql','.xml','.json','.yml','.yaml','.sh','.bat',
     '.cfg','.ini','.log','.csv','.adb','.ads','.hs','.st','.pl','.pro','.ts','.rb','.php','.r','.kt','.swift','.go','.rs'}
 PREVIEWABLE_IMAGE = {'.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg'}
 PREVIEWABLE_PDF = {'.pdf'}
+PREVIEWABLE_OFFICE = {'.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods'}
+PREVIEWABLE_MARKDOWN = {'.md'}
 
 MAX_FILES_PER_UPLOAD = 10
 
@@ -62,13 +64,15 @@ def get_icon(ext):
     return icons.get(ext, '📎')
 
 def is_previewable(ext):
-    return ext.lower() in PREVIEWABLE_TEXT | PREVIEWABLE_IMAGE | PREVIEWABLE_PDF
+    return ext.lower() in PREVIEWABLE_TEXT | PREVIEWABLE_IMAGE | PREVIEWABLE_PDF | PREVIEWABLE_OFFICE | PREVIEWABLE_MARKDOWN
 
 def get_preview_type(ext):
     ext = ext.lower()
     if ext in PREVIEWABLE_IMAGE: return "image"
     if ext in PREVIEWABLE_PDF: return "pdf"
+    if ext in PREVIEWABLE_MARKDOWN: return "markdown"
     if ext in PREVIEWABLE_TEXT: return "text"
+    if ext in PREVIEWABLE_OFFICE: return "office"
     return None
 
 def safe_path(path):
@@ -611,9 +615,15 @@ async def view_raw(path: str):
     mt = {'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png',
           '.gif':'image/gif','.svg':'image/svg+xml','.webp':'image/webp','.bmp':'image/bmp',
           '.txt':'text/plain; charset=utf-8','.csv':'text/plain; charset=utf-8',
-          '.json':'application/json','.xml':'text/xml'}
-    return FileResponse(target, media_type=mt.get(ext, 'text/plain; charset=utf-8'),
+          '.json':'application/json','.xml':'text/xml',
+          '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
+          '.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation',
+          '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+          '.doc':'application/msword','.ppt':'application/vnd.ms-powerpoint',
+          '.xls':'application/vnd.ms-excel'}
+    return FileResponse(target, media_type=mt.get(ext, 'application/octet-stream'),
                         headers={"Content-Disposition": "inline"})
+
 
 
 # ============ INDEX CSV ============
