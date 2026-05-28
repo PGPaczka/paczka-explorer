@@ -1,0 +1,17 @@
+[Unit]
+Description=Paczka INFA - Frontend (Vite/React serve)
+After=network.target paczka-backend.service
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/paczka-fileserver/frontend
+ExecStart=/usr/bin/npx serve dist -l 3000
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target

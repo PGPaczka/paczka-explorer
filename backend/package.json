@@ -1,0 +1,11 @@
+{
+  "name": "paczka-infa-fileserver",
+  "private": true,
+  "version": "1.0.0",
+  "scripts": {
+    "start": "python app.py"
+  },
+  "devDependencies": {
+    "concurrently": "^8.2.2"
+  }
+}

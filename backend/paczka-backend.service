@@ -1,0 +1,18 @@
+[Unit]
+Description=Paczka INFA - Backend API (FastAPI/Uvicorn)
+After=network.target
+
+[Service]
+Type=simple
+User=www-data
+Group=www-data
+WorkingDirectory=/opt/paczka-fileserver/backend
+EnvironmentFile=/opt/paczka-fileserver/backend/.env
+ExecStart=/usr/bin/python3 app.py
+Restart=on-failure
+RestartSec=5
+StandardOutput=journal
+StandardError=journal
+
+[Install]
+WantedBy=multi-user.target
