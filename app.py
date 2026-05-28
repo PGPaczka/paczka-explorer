@@ -102,6 +102,143 @@ def get_description(rel_path):
     return _index_descriptions.get(rel_path, "")
 
 
+def search_index(query):
+    """Search the index CSV for files matching the query (recursive, all fields).
+    
+    Supports logical operators:
+    - AND (or &): all conditions must match
+    - OR (or |): at least one condition must match
+    - NOT (or !): exclude results matching this term
+    
+    Example: ".png AND matematyka dyskretna"
+             "kolokwium OR egzamin"
+             "algebra NOT poprawka"
+    """
+    _load_index()
+    if not INDEX_FILE.exists():
+        return []
+
+    # Parse query into conditions
+    conditions = _parse_search_query(query)
+    if not conditions:
+        return []
+
+    results = []
+    lines = INDEX_FILE.read_text(encoding='utf-8').splitlines()
+
+    for i, line in enumerate(lines):
+        if i < 2 or not line.strip():
+            continue
+        parts = line.split(';')
+        if len(parts) < 5:
+            continue
+
+        rel_path = parts[0].strip()
+        semester = parts[1].strip()
+        subject = parts[2].strip()
+        size_str = parts[3].strip()
+        desc = parts[4].strip()
+
+        # Search in filename, path, semester, subject, description
+        filename = rel_path.split('\\')[-1] if '\\' in rel_path else rel_path.split('/')[-1]
+        searchable = f"{rel_path} {semester} {subject} {desc} {filename}".lower()
+
+        if _matches_conditions(searchable, conditions):
+            rel_normalized = rel_path.replace('\\', '/')
+            ext = ('.' + filename.rsplit('.', 1)[-1]).lower() if '.' in filename else ''
+            try:
+                size = int(size_str)
+            except ValueError:
+                size = 0
+
+            results.append({
+                "name": filename,
+                "rel": rel_normalized,
+                "ext": ext,
+                "size": size,
+                "sizeFormatted": format_size(size),
+                "icon": get_icon(ext),
+                "previewable": is_previewable(ext),
+                "previewType": get_preview_type(ext),
+                "description": desc,
+                "semester": semester,
+                "subject": subject,
+                "path": '/'.join(rel_normalized.split('/')[:-1]),
+            })
+
+    return results
+
+
+import re as _re
+
+def _parse_search_query(query):
+    """Parse a search query with AND/OR/NOT operators.
+    
+    Returns a list of condition groups (OR-separated).
+    Each group is a list of (negated: bool, term: str) tuples (AND-separated).
+    
+    Logic: groups are OR'd together, within each group terms are AND'd.
+    """
+    query = query.strip()
+    if not query:
+        return None
+
+    # Split by OR (case-insensitive) or |
+    or_groups = _re.split(r'\s+OR\s+|\s*\|\s*', query, flags=_re.IGNORECASE)
+
+    parsed_groups = []
+    for group in or_groups:
+        group = group.strip()
+        if not group:
+            continue
+        # Split by AND (case-insensitive) or &
+        and_terms = _re.split(r'\s+AND\s+|\s*&\s*', group, flags=_re.IGNORECASE)
+        parsed_terms = []
+        for term in and_terms:
+            term = term.strip()
+            if not term:
+                continue
+            # Check for NOT prefix (case-insensitive) or !
+            negated = False
+            if _re.match(r'^NOT\s+', term, flags=_re.IGNORECASE):
+                negated = True
+                term = _re.sub(r'^NOT\s+', '', term, flags=_re.IGNORECASE).strip()
+            elif term.startswith('!'):
+                negated = True
+                term = term[1:].strip()
+            if term:
+                parsed_terms.append((negated, term.lower()))
+        if parsed_terms:
+            parsed_groups.append(parsed_terms)
+
+    return parsed_groups if parsed_groups else None
+
+
+def _matches_conditions(searchable, conditions):
+    """Check if searchable text matches the parsed conditions.
+    
+    conditions: list of OR-groups, each group is a list of (negated, term) AND-terms.
+    Returns True if ANY group fully matches (OR logic between groups).
+    A group matches if ALL its terms match (AND logic within group).
+    A term matches if it's found in searchable (or NOT found if negated).
+    """
+    for group in conditions:
+        group_matches = True
+        for negated, term in group:
+            found = term in searchable
+            if negated:
+                if found:
+                    group_matches = False
+                    break
+            else:
+                if not found:
+                    group_matches = False
+                    break
+        if group_matches:
+            return True
+    return False
+
+
 # ============ AUTH ============
 
 import hashlib
@@ -167,6 +304,21 @@ async def api_browse(request: Request, path: str = ""):
         "isAdmin": is_admin,
         "githubPrUrl": GITHUB_PR_URL,
     }
+
+
+# ============ API: SEARCH ============
+
+@app.get("/api/search")
+async def api_search(q: str = "", limit: int = 100):
+    """Recursive file search using INDEKS.csv."""
+    if not q or len(q) < 2:
+        return {"results": [], "query": q, "total": 0}
+
+    results = search_index(q)
+    total = len(results)
+    results = results[:limit]
+
+    return {"results": results, "query": q, "total": total}
 
 
 # ============ API: PENDING ============

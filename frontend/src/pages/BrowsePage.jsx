@@ -4,18 +4,19 @@ import {
   Container, Box, Breadcrumbs, Link, Typography, TextField, InputAdornment,
   List, ListItem, ListItemIcon, ListItemText, ListItemSecondaryAction,
   Checkbox, IconButton, Button, Chip, Paper, Snackbar, Alert, Tooltip,
-  Fab, Divider, Stack, LinearProgress,
+  Fab, Divider, Stack, LinearProgress, ToggleButton, ToggleButtonGroup,
 } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
 import Download from '@mui/icons-material/Download'
 import Search from '@mui/icons-material/Search'
+import TravelExplore from '@mui/icons-material/TravelExplore'
 import ArrowUpward from '@mui/icons-material/ArrowUpward'
 import CloudUpload from '@mui/icons-material/CloudUpload'
 import CreateNewFolder from '@mui/icons-material/CreateNewFolder'
 import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { fetchBrowse, getDownloadUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, prepareZipFolder, prepareZipSelected } from '../api'
+import { fetchBrowse, searchFiles, getDownloadUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
@@ -43,6 +44,9 @@ export default function BrowsePage() {
   const [zipJobId, setZipJobId] = useState(null)
   const [zipTotalFiles, setZipTotalFiles] = useState(0)
   const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [searchMode, setSearchMode] = useState('local') // 'local' or 'global'
+  const [globalResults, setGlobalResults] = useState(null)
+  const [globalSearchLoading, setGlobalSearchLoading] = useState(false)
 
   const loadData = async () => {
     setLoading(true)
@@ -59,17 +63,37 @@ export default function BrowsePage() {
 
   useEffect(() => { loadData() }, [currentPath])
 
+  // Global search with debounce
+  useEffect(() => {
+    if (searchMode !== 'global' || !search || search.length < 2) {
+      setGlobalResults(null)
+      return
+    }
+    const timer = setTimeout(async () => {
+      setGlobalSearchLoading(true)
+      try {
+        const result = await searchFiles(search)
+        setGlobalResults(result)
+      } catch (err) {
+        setSnackbar({ open: true, message: 'Błąd wyszukiwania: ' + err.message, severity: 'error' })
+      } finally {
+        setGlobalSearchLoading(false)
+      }
+    }, 300)
+    return () => clearTimeout(timer)
+  }, [search, searchMode])
+
   const filteredDirs = useMemo(() => {
     if (!data) return []
-    if (!search) return data.dirs
+    if (!search || searchMode === 'global') return data.dirs
     return data.dirs.filter(d => d.name.toLowerCase().includes(search.toLowerCase()))
-  }, [data, search])
+  }, [data, search, searchMode])
 
   const filteredFiles = useMemo(() => {
     if (!data) return []
-    if (!search) return data.files
+    if (!search || searchMode === 'global') return data.files
     return data.files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-  }, [data, search])
+  }, [data, search, searchMode])
 
   const previewableFiles = useMemo(() => {
     if (!data) return []
@@ -189,21 +213,133 @@ export default function BrowsePage() {
       </Breadcrumbs>
 
       {/* Search */}
-      <TextField
-        fullWidth
-        size="small"
-        placeholder="Szukaj plików..."
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        sx={{ mb: 2 }}
-        InputProps={{
-          startAdornment: (
-            <InputAdornment position="start">
+      <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
+        <ToggleButtonGroup
+          value={searchMode}
+          exclusive
+          onChange={(e, val) => { if (val) { setSearchMode(val); setSearch(''); setGlobalResults(null) } }}
+          size="small"
+        >
+          <ToggleButton value="local">
+            <Tooltip title="Szukaj w bieżącym folderze">
               <Search />
-            </InputAdornment>
-          ),
-        }}
-      />
+            </Tooltip>
+          </ToggleButton>
+          <ToggleButton value="global">
+            <Tooltip title="Szukaj rekurencyjnie (wszystkie pliki)">
+              <TravelExplore />
+            </Tooltip>
+          </ToggleButton>
+        </ToggleButtonGroup>
+        <TextField
+          fullWidth
+          size="small"
+          placeholder={searchMode === 'global' ? "np: .png AND matematyka dyskretna | kolokwium NOT poprawka" : "Szukaj w bieżącym folderze..."}
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          InputProps={{
+            startAdornment: (
+              <InputAdornment position="start">
+                {searchMode === 'global' ? <TravelExplore color="primary" /> : <Search />}
+              </InputAdornment>
+            ),
+          }}
+        />
+      </Stack>
+      {searchMode === 'global' && (
+        <Typography variant="caption" color="text.secondary" sx={{ mb: 2, display: 'block' }}>
+          Operatory: <strong>AND</strong> (lub &amp;) — oba warunki · <strong>OR</strong> (lub |) — jeden z warunków · <strong>NOT</strong> (lub !) — wyklucz. Przykład: <em>.pdf AND algebra NOT poprawka</em>
+        </Typography>
+      )}
+
+      {/* Global search results */}
+      {searchMode === 'global' && search.length >= 2 && (
+        <Paper variant="outlined" sx={{ mb: 3 }}>
+          {globalSearchLoading && <LinearProgress />}
+          {globalResults && (
+            <>
+              <Box sx={{ p: 1.5, bgcolor: 'action.hover' }}>
+                <Typography variant="body2" color="text.secondary">
+                  🔍 Znaleziono <strong>{globalResults.total}</strong> wyników dla „{globalResults.query}"
+                </Typography>
+              </Box>
+              <List disablePadding>
+                {globalResults.results.map((file) => (
+                  <ListItem
+                    key={file.rel}
+                    sx={{
+                      borderBottom: '1px solid',
+                      borderColor: 'divider',
+                      '&:hover': { bgcolor: 'action.hover' },
+                    }}
+                  >
+                    <ListItemIcon sx={{ minWidth: 40, fontSize: 20 }}>
+                      {file.icon}
+                    </ListItemIcon>
+                    <ListItemText
+                      primary={
+                        file.previewable ? (
+                          <Link
+                            component="button"
+                            underline="hover"
+                            onClick={() => {
+                              // Navigate to the file's folder and preview
+                              const folderPath = file.path
+                              navigate(folderPath ? `/browse/${folderPath}` : '/browse')
+                            }}
+                            sx={{ textAlign: 'left', fontWeight: 500 }}
+                          >
+                            {file.name}
+                          </Link>
+                        ) : (
+                          <Link href={getDownloadUrl(file.rel)} underline="hover" sx={{ fontWeight: 500 }}>
+                            {file.name}
+                          </Link>
+                        )
+                      }
+                      secondary={
+                        <span>
+                          <Typography component="span" variant="caption" color="text.secondary">
+                            📂 {file.path || 'Główna'}
+                          </Typography>
+                          {' — '}{file.sizeFormatted}
+                          {file.description && <> — {file.description}</>}
+                          {file.semester && file.semester !== 'Ogólne' && (
+                            <Chip label={file.semester} size="small" sx={{ ml: 1, height: 18, fontSize: '0.7rem' }} />
+                          )}
+                          {file.subject && file.subject !== 'Ogólne' && (
+                            <Chip label={file.subject} size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: '0.7rem' }} />
+                          )}
+                        </span>
+                      }
+                    />
+                    <Tooltip title="Pobierz">
+                      <IconButton size="small" href={getDownloadUrl(file.rel)}>
+                        <Download fontSize="small" />
+                      </IconButton>
+                    </Tooltip>
+                  </ListItem>
+                ))}
+                {globalResults.results.length === 0 && (
+                  <ListItem>
+                    <ListItemText
+                      primary="Brak wyników"
+                      sx={{ textAlign: 'center', color: 'text.secondary' }}
+                    />
+                  </ListItem>
+                )}
+              </List>
+            </>
+          )}
+          {!globalResults && !globalSearchLoading && search.length >= 2 && (
+            <Box sx={{ p: 2, textAlign: 'center' }}>
+              <Typography variant="body2" color="text.secondary">
+                Wpisz co najmniej 2 znaki aby wyszukać...
+              </Typography>
+            </Box>
+          )}
+        </Paper>
+      )}
 
       {/* Stats & Toolbar */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }} flexWrap="wrap" gap={1}>

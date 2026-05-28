@@ -1,5 +1,11 @@
 const API_BASE = ''
 
+export async function searchFiles(query) {
+  const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 export async function fetchBrowse(path = '') {
   const res = await fetch(`${API_BASE}/api/browse/${path}`)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
