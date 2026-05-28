@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, IconButton, Typography, Stack, Button, Box,
   LinearProgress,
@@ -9,65 +9,54 @@ import ArrowForward from '@mui/icons-material/ArrowForward'
 import Download from '@mui/icons-material/Download'
 import { getViewUrl, getDownloadUrl, getAdminViewUrl } from '../api'
 
-export default function PreviewModal({ open, onClose, files, index, onIndexChange, isPending = false }) {
+// Individual slide renderer - handles one file preview
+function PreviewSlide({ file, getUrl, visible }) {
   const [textContent, setTextContent] = useState('')
-  const [loadingText, setLoadingText] = useState(false)
-  const [loadingOffice, setLoadingOffice] = useState(false)
-  const [officeError, setOfficeError] = useState('')
-  const [xlsxHtml, setXlsxHtml] = useState('')
   const [markdownHtml, setMarkdownHtml] = useState('')
-  const docxContainerRef = useRef(null)
-  const pptxContainerRef = useRef(null)
-
-  const file = files[index]
-
-  const getUrl = useCallback((f) => {
-    if (isPending) return getAdminViewUrl(f.rel)
-    return getViewUrl(f.rel)
-  }, [isPending])
+  const [xlsxHtml, setXlsxHtml] = useState('')
+  const [loading, setLoading] = useState(true)
+  const [officeError, setOfficeError] = useState('')
+  const docxRef = useRef(null)
+  const pptxRef = useRef(null)
+  const rendered = useRef(false)
 
   useEffect(() => {
-    if (!open || !file) return
-    setOfficeError('')
-    setXlsxHtml('')
-    setMarkdownHtml('')
+    if (!file || rendered.current) return
+    rendered.current = true
 
-    // Clear previous renders
-    if (docxContainerRef.current) docxContainerRef.current.innerHTML = ''
-    if (pptxContainerRef.current) pptxContainerRef.current.innerHTML = ''
+    const url = getUrl(file)
 
     if (file.previewType === 'text') {
-      setLoadingText(true)
-      fetch(getUrl(file))
+      fetch(url)
         .then(r => r.text())
-        .then(text => { setTextContent(text.substring(0, 50000)); setLoadingText(false) })
-        .catch(() => { setTextContent('Nie udało się załadować pliku.'); setLoadingText(false) })
+        .then(text => { setTextContent(text.substring(0, 50000)); setLoading(false) })
+        .catch(() => { setTextContent('Nie udało się załadować pliku.'); setLoading(false) })
     } else if (file.previewType === 'markdown') {
-      setLoadingText(true)
-      fetch(getUrl(file))
+      fetch(url)
         .then(r => r.text())
         .then(async (text) => {
           const { marked } = await import('marked')
           setMarkdownHtml(marked(text))
-          setLoadingText(false)
+          setLoading(false)
         })
-        .catch(() => { setMarkdownHtml('<p>Nie udało się załadować pliku.</p>'); setLoadingText(false) })
+        .catch(() => { setMarkdownHtml('<p>Nie udało się załadować pliku.</p>'); setLoading(false) })
     } else if (file.previewType === 'office') {
       const ext = (file.ext || '.' + file.name.split('.').pop()).toLowerCase()
-      setLoadingOffice(true)
-
       if (ext === '.docx') {
-        renderDocx(getUrl(file))
+        renderDocx(url)
       } else if (ext === '.xlsx' || ext === '.xls') {
-        renderXlsx(getUrl(file))
+        renderXlsx(url)
       } else if (ext === '.pptx') {
-        renderPptx(getUrl(file))
+        renderPptx(url)
       } else {
-        setOfficeError(`Podgląd formatu ${ext} nie jest w pełni obsługiwany. Pobierz plik aby go otworzyć.`)
-        setLoadingOffice(false)
+        setOfficeError(`Podgląd formatu ${ext} nie jest w pełni obsługiwany. Pobierz plik.`)
+        setLoading(false)
       }
+    } else {
+      // image, pdf - handled directly in JSX
+      setLoading(false)
     }
-  }, [open, index, file, getUrl])
+  }, [file, getUrl])
 
   const renderDocx = async (url) => {
     try {
@@ -75,9 +64,8 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
       const blob = await response.blob()
       const { renderAsync } = await import('docx-preview')
       setTimeout(() => {
-        if (docxContainerRef.current) {
-          docxContainerRef.current.innerHTML = ''
-          renderAsync(blob, docxContainerRef.current, null, {
+        if (docxRef.current) {
+          renderAsync(blob, docxRef.current, null, {
             className: 'docx-preview',
             inWrapper: true,
             ignoreWidth: false,
@@ -85,13 +73,13 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
             ignoreFonts: false,
             breakPages: true,
             ignoreLastRenderedPageBreak: true,
-          }).then(() => setLoadingOffice(false))
-            .catch((err) => { setOfficeError('Błąd renderowania DOCX: ' + err.message); setLoadingOffice(false) })
+          }).then(() => setLoading(false))
+            .catch((err) => { setOfficeError('Błąd renderowania DOCX: ' + err.message); setLoading(false) })
         }
       }, 50)
     } catch (err) {
       setOfficeError('Nie udało się załadować pliku: ' + err.message)
-      setLoadingOffice(false)
+      setLoading(false)
     }
   }
 
@@ -101,7 +89,6 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
       const arrayBuffer = await response.arrayBuffer()
       const XLSX = await import('xlsx')
       const workbook = XLSX.read(arrayBuffer, { type: 'array' })
-
       let html = ''
       for (const sheetName of workbook.SheetNames.slice(0, 5)) {
         const sheet = workbook.Sheets[sheetName]
@@ -112,10 +99,10 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
         </div>`
       }
       setXlsxHtml(html)
-      setLoadingOffice(false)
+      setLoading(false)
     } catch (err) {
       setOfficeError('Błąd renderowania arkusza: ' + err.message)
-      setLoadingOffice(false)
+      setLoading(false)
     }
   }
 
@@ -124,29 +111,105 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
       const response = await fetch(url)
       const blob = await response.blob()
       const { init } = await import('pptx-preview')
-
       setTimeout(() => {
-        if (pptxContainerRef.current) {
-          pptxContainerRef.current.innerHTML = ''
-          const width = pptxContainerRef.current.clientWidth || 800
-          const instance = init(pptxContainerRef.current, {
-            width,
-            height: null,
-            mode: 'vertical',
-          })
+        if (pptxRef.current) {
+          const width = 800
+          const instance = init(pptxRef.current, { width, height: null, mode: 'vertical' })
           instance.preview(blob)
-            .then(() => setLoadingOffice(false))
-            .catch((err) => {
-              setOfficeError('Błąd renderowania PPTX: ' + err.message)
-              setLoadingOffice(false)
-            })
+            .then(() => setLoading(false))
+            .catch((err) => { setOfficeError('Błąd renderowania PPTX: ' + err.message); setLoading(false) })
         }
       }, 100)
     } catch (err) {
       setOfficeError('Nie udało się załadować prezentacji: ' + err.message)
-      setLoadingOffice(false)
+      setLoading(false)
     }
   }
+
+  if (!file) return null
+
+  const url = getUrl(file)
+
+  return (
+    <Box sx={{ display: visible ? 'flex' : 'none', width: '100%', minHeight: 400, alignItems: 'center', justifyContent: 'center' }}>
+      {loading && visible && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0 }} />}
+
+      {file.previewType === 'pdf' && (
+        <iframe src={url} style={{ width: '100%', height: '70vh', border: 'none' }} title={file.name} />
+      )}
+
+      {file.previewType === 'image' && (
+        <Box component="img" src={url} alt={file.name} sx={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 1 }} />
+      )}
+
+      {file.previewType === 'text' && (
+        <Box component="pre" sx={{
+          width: '100%', maxHeight: '70vh', overflow: 'auto',
+          bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2,
+          fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
+        }}>
+          {loading ? 'Ładowanie...' : textContent}
+        </Box>
+      )}
+
+      {file.previewType === 'markdown' && (
+        <Box sx={{
+          width: '100%', maxHeight: '70vh', overflow: 'auto', p: 3,
+          '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 2, mb: 1 },
+          '& p': { mb: 1.5, lineHeight: 1.7 },
+          '& code': { bgcolor: 'action.hover', px: 0.5, py: 0.25, borderRadius: 0.5, fontSize: '0.9em' },
+          '& pre': { bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2, overflow: 'auto', fontSize: 13 },
+          '& pre code': { bgcolor: 'transparent', p: 0 },
+          '& blockquote': { borderLeft: '4px solid', borderColor: 'primary.main', pl: 2, ml: 0, color: 'text.secondary' },
+          '& table': { borderCollapse: 'collapse', width: '100%', mb: 2 },
+          '& td, & th': { border: '1px solid', borderColor: 'divider', p: 1 },
+          '& th': { bgcolor: 'action.hover', fontWeight: 'bold' },
+          '& img': { maxWidth: '100%' }, '& a': { color: 'primary.main' },
+          '& ul, & ol': { pl: 3 }, '& li': { mb: 0.5 },
+        }} dangerouslySetInnerHTML={{ __html: loading ? '<p>Ładowanie...</p>' : markdownHtml }} />
+      )}
+
+      {file.previewType === 'office' && (
+        <Box sx={{ width: '100%', maxHeight: '70vh', overflow: 'auto' }}>
+          {officeError && (
+            <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>{officeError}</Typography>
+          )}
+          <Box ref={docxRef} sx={{
+            '& .docx-wrapper': { background: 'white', padding: '20px', minHeight: '200px' },
+            '& .docx-wrapper section.docx': { boxShadow: '0 0 10px rgba(0,0,0,0.1)', marginBottom: '16px', padding: '40px 60px' },
+          }} />
+          <Box ref={pptxRef} sx={{
+            '& .slide-wrapper': { marginBottom: '16px', boxShadow: '0 2px 8px rgba(0,0,0,0.15)', borderRadius: '4px', overflow: 'hidden' },
+          }} />
+          {xlsxHtml && (
+            <Box dangerouslySetInnerHTML={{ __html: xlsxHtml }} sx={{
+              '& table': { borderCollapse: 'collapse', width: '100%', fontSize: '13px' },
+              '& td, & th': { border: '1px solid #ddd', padding: '4px 8px' },
+              '& th': { background: '#f5f5f5', fontWeight: 'bold' },
+              '& tr:nth-of-type(even)': { background: '#fafafa' },
+            }} />
+          )}
+        </Box>
+      )}
+    </Box>
+  )
+}
+
+export default function PreviewModal({ open, onClose, files, index, onIndexChange, isPending = false }) {
+  const file = files[index]
+
+  const getUrl = useCallback((f) => {
+    if (isPending) return getAdminViewUrl(f.rel)
+    return getViewUrl(f.rel)
+  }, [isPending])
+
+  // Determine which indices to prerender (prev, current, next)
+  const renderIndices = useMemo(() => {
+    const indices = [index]
+    if (index > 0) indices.push(index - 1)
+    if (index < files.length - 1) indices.push(index + 1)
+    return indices
+  }, [index, files.length])
 
   useEffect(() => {
     if (!open) return
@@ -179,140 +242,22 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
         </Typography>
         <Stack direction="row" gap={0.5}>
           {!isPending && (
-            <Button
-              size="small"
-              variant="contained"
-              startIcon={<Download />}
-              href={getDownloadUrl(file.rel)}
-            >
+            <Button size="small" variant="contained" startIcon={<Download />} href={getDownloadUrl(file.rel)}>
               Pobierz
             </Button>
           )}
           <IconButton onClick={onClose}><Close /></IconButton>
         </Stack>
       </DialogTitle>
-      <DialogContent sx={{ minHeight: 400, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
-        {file.previewType === 'pdf' && (
-          <iframe
-            src={getUrl(file)}
-            style={{ width: '100%', height: '70vh', border: 'none' }}
-            title={file.name}
+      <DialogContent sx={{ minHeight: 400, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+        {renderIndices.map((i) => (
+          <PreviewSlide
+            key={files[i]?.rel || i}
+            file={files[i]}
+            getUrl={getUrl}
+            visible={i === index}
           />
-        )}
-        {file.previewType === 'image' && (
-          <Box
-            component="img"
-            src={getUrl(file)}
-            alt={file.name}
-            sx={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 1 }}
-          />
-        )}
-        {file.previewType === 'text' && (
-          <Box
-            component="pre"
-            sx={{
-              width: '100%',
-              maxHeight: '70vh',
-              overflow: 'auto',
-              bgcolor: '#1e1e1e',
-              color: '#d4d4d4',
-              p: 2,
-              borderRadius: 2,
-              fontSize: 13,
-              lineHeight: 1.5,
-              whiteSpace: 'pre-wrap',
-              wordWrap: 'break-word',
-            }}
-          >
-            {loadingText ? 'Ładowanie...' : textContent}
-          </Box>
-        )}
-        {file.previewType === 'markdown' && (
-          <Box
-            sx={{
-              width: '100%',
-              maxHeight: '70vh',
-              overflow: 'auto',
-              p: 3,
-              '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 2, mb: 1 },
-              '& p': { mb: 1.5, lineHeight: 1.7 },
-              '& code': { bgcolor: 'action.hover', px: 0.5, py: 0.25, borderRadius: 0.5, fontSize: '0.9em' },
-              '& pre': { bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2, overflow: 'auto', fontSize: 13 },
-              '& pre code': { bgcolor: 'transparent', p: 0 },
-              '& blockquote': { borderLeft: '4px solid', borderColor: 'primary.main', pl: 2, ml: 0, color: 'text.secondary' },
-              '& table': { borderCollapse: 'collapse', width: '100%', mb: 2 },
-              '& td, & th': { border: '1px solid', borderColor: 'divider', p: 1 },
-              '& th': { bgcolor: 'action.hover', fontWeight: 'bold' },
-              '& img': { maxWidth: '100%' },
-              '& a': { color: 'primary.main' },
-              '& ul, & ol': { pl: 3 },
-              '& li': { mb: 0.5 },
-            }}
-            dangerouslySetInnerHTML={{ __html: loadingText ? '<p>Ładowanie...</p>' : markdownHtml }}
-          />
-        )}
-        {file.previewType === 'office' && (
-          <Box sx={{ width: '100%', maxHeight: '70vh', overflow: 'auto' }}>
-            {loadingOffice && <LinearProgress sx={{ mb: 2 }} />}
-            {officeError && (
-              <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-                {officeError}
-              </Typography>
-            )}
-            {/* DOCX rendered here by docx-preview */}
-            <Box
-              ref={docxContainerRef}
-              sx={{
-                '& .docx-wrapper': {
-                  background: 'white',
-                  padding: '20px',
-                  minHeight: '200px',
-                },
-                '& .docx-wrapper section.docx': {
-                  boxShadow: '0 0 10px rgba(0,0,0,0.1)',
-                  marginBottom: '16px',
-                  padding: '40px 60px',
-                },
-              }}
-            />
-            {/* PPTX rendered here by pptx-preview */}
-            <Box
-              ref={pptxContainerRef}
-              sx={{
-                '& .slide-wrapper': {
-                  marginBottom: '16px',
-                  boxShadow: '0 2px 8px rgba(0,0,0,0.15)',
-                  borderRadius: '4px',
-                  overflow: 'hidden',
-                },
-              }}
-            />
-            {/* XLSX rendered as HTML */}
-            {xlsxHtml && (
-              <Box
-                dangerouslySetInnerHTML={{ __html: xlsxHtml }}
-                sx={{
-                  '& table': {
-                    borderCollapse: 'collapse',
-                    width: '100%',
-                    fontSize: '13px',
-                  },
-                  '& td, & th': {
-                    border: '1px solid #ddd',
-                    padding: '4px 8px',
-                  },
-                  '& th': {
-                    background: '#f5f5f5',
-                    fontWeight: 'bold',
-                  },
-                  '& tr:nth-of-type(even)': {
-                    background: '#fafafa',
-                  },
-                }}
-              />
-            )}
-          </Box>
-        )}
+        ))}
       </DialogContent>
       {!isPending && files.length > 1 && (
         <Typography variant="caption" textAlign="center" sx={{ pb: 1 }} color="text.secondary">

@@ -16,7 +16,8 @@ import CreateNewFolder from '@mui/icons-material/CreateNewFolder'
 import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
-import { fetchBrowse, searchFiles, getDownloadUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, prepareZipFolder, prepareZipSelected } from '../api'
+import EditIcon from '@mui/icons-material/Edit'
+import { fetchBrowse, searchFiles, getDownloadUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
@@ -172,6 +173,18 @@ export default function BrowsePage() {
       loadData()
     } catch (err) {
       showSnackbar('Błąd usuwania: ' + err.message, 'error')
+    }
+  }
+
+  const handleRename = async (item) => {
+    const newName = window.prompt('Nowa nazwa:', item.name)
+    if (!newName || newName === item.name) return
+    try {
+      await adminRename(item.rel, newName)
+      showSnackbar('Nazwa zmieniona')
+      loadData()
+    } catch (err) {
+      showSnackbar('Błąd zmiany nazwy: ' + err.message, 'error')
     }
   }
 
@@ -410,6 +423,16 @@ export default function BrowsePage() {
                 </IconButton>
               </Tooltip>
               {data.isAdmin && (
+                <Tooltip title="Zmień nazwę">
+                  <IconButton
+                    size="small"
+                    onClick={(e) => { e.stopPropagation(); handleRename(dir) }}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
+              {data.isAdmin && (
                 <Tooltip title="Usuń folder">
                   <IconButton
                     size="small"
@@ -471,6 +494,16 @@ export default function BrowsePage() {
                   <Download fontSize="small" />
                 </IconButton>
               </Tooltip>
+              {data.isAdmin && (
+                <Tooltip title="Zmień nazwę">
+                  <IconButton
+                    size="small"
+                    onClick={() => handleRename(file)}
+                  >
+                    <EditIcon fontSize="small" />
+                  </IconButton>
+                </Tooltip>
+              )}
               {data.isAdmin && (
                 <Tooltip title="Usuń plik">
                   <IconButton

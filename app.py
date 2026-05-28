@@ -768,6 +768,36 @@ async def admin_delete_folder(request: Request):
     return {"success": True}
 
 
+# ============ ADMIN: RENAME ============
+
+@app.post("/api/admin/rename")
+async def admin_rename(request: Request):
+    if not _check_admin(request):
+        raise HTTPException(403)
+    body = await request.json()
+    old_path = body.get("path", "")
+    new_name = body.get("new_name", "").strip()
+
+    if not old_path or not new_name:
+        raise HTTPException(400, "Brak ścieżki lub nowej nazwy")
+
+    # Sanitize new name
+    new_name = new_name.replace('/', '').replace('\\', '').replace('..', '')
+    if not new_name:
+        raise HTTPException(400, "Nieprawidłowa nazwa")
+
+    target = safe_path(old_path)
+    if not target.exists():
+        raise HTTPException(404, "Plik/folder nie istnieje")
+
+    new_target = target.parent / new_name
+    if new_target.exists():
+        raise HTTPException(409, "Element o takiej nazwie już istnieje")
+
+    target.rename(new_target)
+    return {"success": True, "new_path": str(new_target.relative_to(FILES_ROOT)).replace('\\', '/')}
+
+
 # ============ ADMIN: VIEW PENDING FILE ============
 
 @app.get("/admin/view/{file_id}")
