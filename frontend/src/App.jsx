@@ -41,6 +41,7 @@ function Footer() {
           <GitHub sx={{ fontSize: 16 }} />
           dommilosz
         </Link>
+        · Kontakt: milosz_123456 (Discord)
       </Typography>
       <Tooltip title={mode === 'dark' ? 'Jasny motyw' : 'Ciemny motyw'}>
         <IconButton size="small" onClick={toggleMode} color="inherit">
