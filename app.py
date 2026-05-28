@@ -22,6 +22,7 @@ FILES_ROOT = Path(os.getenv("FILES_ROOT", r"c:\Users\dommi\Downloads\Paczka\Pacz
 PENDING_DIR = Path(os.getenv("PENDING_DIR", str(Path(__file__).parent / "pending")))
 PENDING_META = PENDING_DIR / "pending_meta.json"
 INDEX_FILE = Path(os.getenv("INDEX_FILE", r"c:\Users\dommi\Downloads\Paczka\INDEKS.csv"))
+INDEX_DIR_FILE = Path(os.getenv("INDEX_DIR_FILE", r"c:\Users\dommi\Downloads\Paczka\INDEKS_DIR.csv"))
 PENDING_DIR.mkdir(parents=True, exist_ok=True)
 
 ADMIN_PASSWORD = os.getenv("ADMIN_PASSWORD", "admin123")
@@ -633,6 +634,14 @@ async def indeks_csv():
     if not INDEX_FILE.exists():
         raise HTTPException(404)
     return FileResponse(INDEX_FILE, media_type="text/csv; charset=utf-8", filename="INDEKS.csv")
+
+
+@app.get("/structure")
+async def structure():
+    """Serve directory structure as CSV."""
+    if not INDEX_DIR_FILE.exists():
+        raise HTTPException(404)
+    return FileResponse(INDEX_DIR_FILE, media_type="text/csv; charset=utf-8", filename="INDEKS_DIR.csv")
 
 
 # ============ CREATE FOLDER ============
