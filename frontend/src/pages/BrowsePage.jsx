@@ -401,17 +401,23 @@ export default function BrowsePage() {
               {bc.name}
             </Typography>
           ) : (
-            <Link
-              key={i}
-              component="button"
-              underline="hover"
-              onClick={(e) => handleBreadcrumbClick(e, bc)}
-              onDoubleClick={() => handleNavigate(bc.path)}
-              sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.3 }}
-            >
-              {i === 0 ? '🏠 ' : ''}{bc.name}
-              <ExpandMore sx={{ fontSize: 16 }} />
-            </Link>
+            <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
+              <Link
+                component="button"
+                underline="hover"
+                onClick={() => handleNavigate(bc.path)}
+                sx={{ cursor: 'pointer' }}
+              >
+                {i === 0 ? '🏠 ' : ''}{bc.name}
+              </Link>
+              <IconButton
+                size="small"
+                onClick={(e) => handleBreadcrumbClick(e, bc)}
+                sx={{ ml: 0.2, p: 0.2 }}
+              >
+                <ExpandMore sx={{ fontSize: 16 }} />
+              </IconButton>
+            </Box>
           )
         ))}
       </Breadcrumbs>
