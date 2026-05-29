@@ -16,7 +16,15 @@ import uvicorn
 load_dotenv(Path(__file__).parent / ".env")
 
 app = FastAPI(title="Paczka INFA - File Server")
-app.add_middleware(CORSMiddleware, allow_origins=["*"], allow_methods=["*"], allow_headers=["*"])
+
+CORS_ORIGIN = os.getenv("CORS_ORIGIN", "*")
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=[CORS_ORIGIN] if CORS_ORIGIN != "*" else ["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
 
 FILES_ROOT = Path(os.getenv("FILES_ROOT", r"c:\Users\dommi\Downloads\Paczka\Paczki INFA - Uporządkowane"))
 PENDING_DIR = Path(os.getenv("PENDING_DIR", str(Path(__file__).parent / "pending")))
@@ -353,7 +361,7 @@ async def api_login(request: Request):
     password = body.get("password", "")
     if password == ADMIN_PASSWORD:
         response = JSONResponse({"success": True})
-        response.set_cookie("admin_token", _hash_pw(ADMIN_PASSWORD), httponly=True, samesite="strict", max_age=86400)
+        response.set_cookie("admin_token", _hash_pw(ADMIN_PASSWORD), httponly=True, samesite="none", secure=True, max_age=86400)
         return response
     raise HTTPException(401, "Nieprawidłowe hasło")
 

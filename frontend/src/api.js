@@ -1,37 +1,40 @@
 const API_BASE = import.meta.env.VITE_API_BASE || ''
 
+const fetchOpts = { credentials: 'include' }
+
 export async function searchFiles(query) {
-  const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`)
+  const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function fetchBrowse(path = '') {
-  const res = await fetch(`${API_BASE}/api/browse/${path}`)
+  const res = await fetch(`${API_BASE}/api/browse/${path}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function fetchPending(path = '') {
-  const res = await fetch(`${API_BASE}/api/pending/${path}`)
+  const res = await fetch(`${API_BASE}/api/pending/${path}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function fetchPendingAll() {
-  const res = await fetch(`${API_BASE}/api/pending-all`)
+  const res = await fetch(`${API_BASE}/api/pending-all`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function fetchAuthStatus() {
-  const res = await fetch(`${API_BASE}/api/auth-status`)
+  const res = await fetch(`${API_BASE}/api/auth-status`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function login(password) {
   const res = await fetch(`${API_BASE}/api/login`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ password }),
@@ -41,7 +44,7 @@ export async function login(password) {
 }
 
 export async function logout() {
-  const res = await fetch(`${API_BASE}/api/logout`, { method: 'POST' })
+  const res = await fetch(`${API_BASE}/api/logout`, { ...fetchOpts, method: 'POST' })
   return res.json()
 }
 
@@ -53,6 +56,7 @@ export async function uploadFiles(files, targetPath, uploader) {
     formData.append('file', f)
   }
   const res = await fetch(`${API_BASE}/api/upload`, {
+    ...fetchOpts,
     method: 'POST',
     body: formData,
   })
@@ -65,6 +69,7 @@ export async function uploadFiles(files, targetPath, uploader) {
 
 export async function createFolder(targetPath, folderName) {
   const res = await fetch(`${API_BASE}/api/create-folder`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ target_path: targetPath, folder_name: folderName }),
@@ -78,6 +83,7 @@ export async function createFolder(targetPath, folderName) {
 
 export async function adminApprove(groupId) {
   const res = await fetch(`${API_BASE}/api/admin/approve`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ group_id: groupId }),
@@ -88,6 +94,7 @@ export async function adminApprove(groupId) {
 
 export async function adminReject(groupId) {
   const res = await fetch(`${API_BASE}/api/admin/reject`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ group_id: groupId }),
@@ -98,6 +105,7 @@ export async function adminReject(groupId) {
 
 export async function adminApproveFile(groupId, fileId) {
   const res = await fetch(`${API_BASE}/api/admin/approve-file`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ group_id: groupId, file_id: fileId }),
@@ -108,6 +116,7 @@ export async function adminApproveFile(groupId, fileId) {
 
 export async function adminRejectFile(groupId, fileId) {
   const res = await fetch(`${API_BASE}/api/admin/reject-file`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ group_id: groupId, file_id: fileId }),
@@ -118,6 +127,7 @@ export async function adminRejectFile(groupId, fileId) {
 
 export async function adminDeleteFile(filePath) {
   const res = await fetch(`${API_BASE}/api/admin/delete-file`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ file_path: filePath }),
@@ -128,6 +138,7 @@ export async function adminDeleteFile(filePath) {
 
 export async function adminDeleteFolder(folderPath) {
   const res = await fetch(`${API_BASE}/api/admin/delete-folder`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ folder_path: folderPath }),
@@ -138,6 +149,7 @@ export async function adminDeleteFolder(folderPath) {
 
 export async function adminRename(path, newName) {
   const res = await fetch(`${API_BASE}/api/admin/rename`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path, new_name: newName }),
@@ -151,6 +163,7 @@ export async function adminRename(path, newName) {
 
 export async function downloadSelected(files) {
   const res = await fetch(`${API_BASE}/api/download-selected`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ files }),
@@ -161,6 +174,7 @@ export async function downloadSelected(files) {
 
 export async function prepareZipFolder(path) {
   const res = await fetch(`${API_BASE}/api/prepare-zip-folder`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ path }),
@@ -171,6 +185,7 @@ export async function prepareZipFolder(path) {
 
 export async function prepareZipSelected(files) {
   const res = await fetch(`${API_BASE}/api/prepare-zip-selected`, {
+    ...fetchOpts,
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ files }),
@@ -180,7 +195,7 @@ export async function prepareZipSelected(files) {
 }
 
 export async function getZipProgress(jobId) {
-  const res = await fetch(`${API_BASE}/api/zip-progress/${jobId}`)
+  const res = await fetch(`${API_BASE}/api/zip-progress/${jobId}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
