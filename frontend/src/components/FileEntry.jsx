@@ -1,5 +1,6 @@
+import { memo } from 'react'
 import {
-  ListItem, ListItemIcon, ListItemText, Checkbox, IconButton, Link, Tooltip, Chip, Typography,
+  ListItem, ListItemIcon, ListItemText, Checkbox, IconButton, Link, Tooltip, Chip,
 } from '@mui/material'
 import Download from '@mui/icons-material/Download'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -26,7 +27,7 @@ import { getDownloadUrl } from '../api'
  * - hideDownload: boolean (hide download button)
  * - hideCheckbox: boolean (hide checkbox)
  */
-export default function FileEntry({
+const FileEntry = memo(function FileEntry({
   file, selected = false, onToggleSelect, onPreview, onRename, onDelete, onNavigatePath,
   isAdmin = false, showPath = false, extraActions, hideDownload = false, hideCheckbox = false,
 }) {
@@ -127,4 +128,6 @@ export default function FileEntry({
       {extraActions}
     </ListItem>
   )
-}
+})
+
+export default FileEntry

@@ -2,8 +2,8 @@ const API_BASE = import.meta.env.VITE_API_BASE || ''
 
 const fetchOpts = { credentials: 'include' }
 
-export async function searchFiles(query) {
-  const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`, fetchOpts)
+export async function searchFiles(query, signal) {
+  const res = await fetch(`${API_BASE}/api/search?q=${encodeURIComponent(query)}`, { ...fetchOpts, signal })
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

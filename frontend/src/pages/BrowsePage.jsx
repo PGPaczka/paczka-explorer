@@ -1,9 +1,9 @@
-import React, { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Container, Box, Breadcrumbs, Link, Typography, TextField, InputAdornment,
-  List, ListItem, ListItemIcon, ListItemText, ListItemSecondaryAction,
-  Checkbox, IconButton, Button, Chip, Paper, Snackbar, Alert, Tooltip,
+  List, ListItem, ListItemIcon, ListItemText,
+  Checkbox, IconButton, Button, Paper, Snackbar, Alert, Tooltip,
   Fab, Divider, Stack, LinearProgress, ToggleButton, ToggleButtonGroup,
 } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
@@ -18,13 +18,12 @@ import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, getViewZipUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
+import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
 import PendingSection from '../components/PendingSection'
 import ZipProgressDialog from '../components/ZipProgressDialog'
-import FileIcon from '../components/FileIcon'
 import FileEntry from '../components/FileEntry'
 
 export default function BrowsePage() {
@@ -38,6 +37,7 @@ export default function BrowsePage() {
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [inputValue, setInputValue] = useState('')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(new Set())
   const [uploadOpen, setUploadOpen] = useState(false)
@@ -52,6 +52,20 @@ export default function BrowsePage() {
   const [searchMode, setSearchMode] = useState('local') // 'local' or 'global'
   const [globalResults, setGlobalResults] = useState(null)
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false)
+  const [filteredDirs, setFilteredDirs] = useState([])
+  const [filteredFiles, setFilteredFiles] = useState([])
+  const [visibleCount, setVisibleCount] = useState(20)
+  const abortRef = useRef(null)
+
+  // Debounce: inputValue -> search (keeps typing instant, delays filtering)
+  useEffect(() => {
+    const timer = setTimeout(() => setSearch(inputValue), 200)
+    return () => clearTimeout(timer)
+  }, [inputValue])
+
+  // Deferred values — React can interrupt rendering these to keep input responsive
+  const deferredDirs = useDeferredValue(filteredDirs)
+  const deferredFiles = useDeferredValue(filteredFiles)
 
   const isZipPath = currentPath.match(/\.zip(\/|$)/i)
 
@@ -70,42 +84,55 @@ export default function BrowsePage() {
 
   useEffect(() => { loadData() }, [currentPath])
 
-  // Global search with debounce
+  // Global search with debounce + AbortController
   useEffect(() => {
     if (searchMode !== 'global' || !search || search.length < 2) {
       setGlobalResults(null)
       return
     }
+    // Abort previous request
+    if (abortRef.current) abortRef.current.abort()
+    const controller = new AbortController()
+    abortRef.current = controller
+
     const timer = setTimeout(async () => {
       setGlobalSearchLoading(true)
       try {
-        const result = await searchFiles(search)
-        setGlobalResults(result)
+        const result = await searchFiles(search, controller.signal)
+        if (!controller.signal.aborted) {
+          setGlobalResults(result)
+        }
       } catch (err) {
-        setSnackbar({ open: true, message: 'Błąd wyszukiwania: ' + err.message, severity: 'error' })
+        if (err.name !== 'AbortError') {
+          setSnackbar({ open: true, message: 'Błąd wyszukiwania: ' + err.message, severity: 'error' })
+        }
       } finally {
-        setGlobalSearchLoading(false)
+        if (!controller.signal.aborted) {
+          setGlobalSearchLoading(false)
+        }
       }
     }, 300)
-    return () => clearTimeout(timer)
+    return () => { clearTimeout(timer); controller.abort() }
   }, [search, searchMode])
 
-  const filteredDirs = useMemo(() => {
-    if (!data) return []
-    if (!search || searchMode === 'global') return data.dirs
-    return data.dirs.filter(d => d.name.toLowerCase().includes(search.toLowerCase()))
+  // Local filtering with debounce (async, non-blocking)
+  useEffect(() => {
+    if (!data) { setFilteredDirs([]); setFilteredFiles([]); return }
+    if (!search || searchMode === 'global') {
+      setFilteredDirs(data.dirs)
+      setFilteredFiles(data.files)
+      return
+    }
+    const timer = setTimeout(() => {
+      const q = search.toLowerCase()
+      setFilteredDirs(data.dirs.filter(d => d.name.toLowerCase().includes(q)))
+      setFilteredFiles(data.files.filter(f => f.name.toLowerCase().includes(q)))
+    }, 150)
+    return () => clearTimeout(timer)
   }, [data, search, searchMode])
 
-  const filteredFiles = useMemo(() => {
-    if (!data) return []
-    if (!search || searchMode === 'global') return data.files
-    return data.files.filter(f => f.name.toLowerCase().includes(search.toLowerCase()))
-  }, [data, search, searchMode])
-
-  const previewableFiles = useMemo(() => {
-    if (!data) return []
-    return data.files.filter(f => f.previewable)
-  }, [data])
+  // Reset visible count when search changes
+  useEffect(() => { setVisibleCount(20) }, [search, searchMode])
 
   const handleNavigate = (path) => {
     navigate(path ? `/browse/${path}` : '/browse')
@@ -275,7 +302,7 @@ export default function BrowsePage() {
         <ToggleButtonGroup
           value={searchMode}
           exclusive
-          onChange={(e, val) => { if (val) { setSearchMode(val); setSearch(''); setGlobalResults(null) } }}
+          onChange={(e, val) => { if (val) { setSearchMode(val); setInputValue(''); setSearch(''); setGlobalResults(null) } }}
           size="small"
         >
           <ToggleButton value="local">
@@ -293,8 +320,8 @@ export default function BrowsePage() {
           fullWidth
           size="small"
           placeholder={searchMode === 'global' ? "np: .png AND matematyka dyskretna | kolokwium NOT poprawka" : "Szukaj w bieżącym folderze..."}
-          value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          value={inputValue}
+          onChange={(e) => setInputValue(e.target.value)}
           InputProps={{
             startAdornment: (
               <InputAdornment position="start">
@@ -312,7 +339,7 @@ export default function BrowsePage() {
 
       {/* Global search results */}
       {searchMode === 'global' && search.length >= 2 && (
-        <Paper variant="outlined" sx={{ mb: 3, maxHeight: 400, display: 'flex', flexDirection: 'column' }}>
+        <Paper variant="outlined" sx={{ mb: 3, maxHeight: 500, display: 'flex', flexDirection: 'column' }}>
           {globalSearchLoading && <LinearProgress />}
           {globalResults && (
             <>
@@ -322,7 +349,7 @@ export default function BrowsePage() {
                 </Typography>
               </Box>
               <List disablePadding sx={{ overflow: 'auto', flexGrow: 1 }}>
-                {globalResults.results.map((file) => (
+                {globalResults.results.slice(0, visibleCount).map((file) => (
                   <FileEntry
                     key={file.rel}
                     file={file}
@@ -336,6 +363,13 @@ export default function BrowsePage() {
                     showPath
                   />
                 ))}
+                {globalResults.results.length > visibleCount && (
+                  <ListItem sx={{ justifyContent: 'center' }}>
+                    <Button onClick={() => setVisibleCount(v => v + 50)}>
+                      Pokaż więcej ({globalResults.results.length - visibleCount} pozostało)
+                    </Button>
+                  </ListItem>
+                )}
                 {globalResults.results.length === 0 && (
                   <ListItem>
                     <ListItemText
@@ -393,7 +427,7 @@ export default function BrowsePage() {
       {/* File list */}
       <Paper variant="outlined" sx={{ mb: 3 }}>
         <List disablePadding>
-          {filteredDirs.map((dir) => (
+          {deferredDirs.map((dir) => (
             <ListItem
               key={dir.rel}
               button
@@ -449,7 +483,7 @@ export default function BrowsePage() {
             </ListItem>
           ))}
 
-          {filteredFiles.map((file) => (
+          {deferredFiles.slice(0, visibleCount).map((file) => (
             <FileEntry
               key={file.rel}
               file={file}
@@ -462,7 +496,15 @@ export default function BrowsePage() {
             />
           ))}
 
-          {filteredDirs.length === 0 && filteredFiles.length === 0 && (
+          {deferredFiles.length > visibleCount && (
+            <ListItem sx={{ justifyContent: 'center' }}>
+              <Button onClick={() => setVisibleCount(v => v + 50)}>
+                Pokaż więcej ({deferredFiles.length - visibleCount} pozostało)
+              </Button>
+            </ListItem>
+          )}
+
+          {deferredDirs.length === 0 && deferredFiles.length === 0 && (
             <ListItem>
               <ListItemText
                 primary="Folder jest pusty"

@@ -12,9 +12,14 @@ import filesRoutes from './routes/files';
 import zipRoutes from './routes/zip';
 import zipBrowseRoutes from './routes/zipBrowse';
 import adminRoutes from './routes/admin';
+import { loadIndex, watchIndex } from './search';
 
 // Ensure pending dir exists
 fs.mkdirSync(PENDING_DIR, { recursive: true });
+
+// Pre-load search index into memory for fast queries
+loadIndex();
+watchIndex();
 
 const app = express();
 
