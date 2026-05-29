@@ -5,6 +5,7 @@ import {
   List, ListItem, ListItemIcon, ListItemText, Menu, MenuItem,
   Checkbox, IconButton, Button, Paper, Snackbar, Alert, Tooltip, Chip,
   Fab, Divider, Stack, LinearProgress, ToggleButton, ToggleButtonGroup,
+  Select, FormControl,
 } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile'
@@ -21,6 +22,8 @@ import EditIcon from '@mui/icons-material/Edit'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import ViewList from '@mui/icons-material/ViewList'
 import GridView from '@mui/icons-material/GridView'
+import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
+import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
@@ -78,6 +81,8 @@ export default function BrowsePage() {
   const [breadcrumbSubdirs, setBreadcrumbSubdirs] = useState([])
   const [dragging, setDragging] = useState(false)
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('paczka-view-mode') || 'list')
+  const [sortBy, setSortBy] = useState('name') // 'name' | 'size' | 'type'
+  const [sortDir, setSortDir] = useState('asc') // 'asc' | 'desc'
   const dragCounter = useRef(0)
   const abortRef = useRef(null)
 
@@ -147,26 +152,55 @@ export default function BrowsePage() {
   // Local filtering with debounce (async, non-blocking)
   useEffect(() => {
     if (!data) { setFilteredDirs([]); setFilteredFiles([]); return }
-    if (!search || searchMode === 'global') {
-      setFilteredDirs(data.dirs)
-      const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
-      if (filterExts) {
-        setFilteredFiles(data.files.filter(f => filterExts.includes(f.ext?.toLowerCase())))
-      } else {
-        setFilteredFiles(data.files)
+
+    const sortFiles = (files) => {
+      const sorted = [...files]
+      sorted.sort((a, b) => {
+        let cmp = 0
+        if (sortBy === 'name') {
+          cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        } else if (sortBy === 'size') {
+          cmp = (a.size || 0) - (b.size || 0)
+        } else if (sortBy === 'type') {
+          cmp = (a.ext || '').localeCompare(b.ext || '') || a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+        }
+        return sortDir === 'desc' ? -cmp : cmp
+      })
+      return sorted
+    }
+
+    const sortDirs = (dirs) => {
+      if (sortBy === 'name') {
+        const sorted = [...dirs]
+        sorted.sort((a, b) => {
+          const cmp = a.name.toLowerCase().localeCompare(b.name.toLowerCase())
+          return sortDir === 'desc' ? -cmp : cmp
+        })
+        return sorted
       }
+      return dirs
+    }
+
+    if (!search || searchMode === 'global') {
+      setFilteredDirs(sortDirs(data.dirs))
+      const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
+      let files = filterExts
+        ? data.files.filter(f => filterExts.includes(f.ext?.toLowerCase()))
+        : data.files
+      setFilteredFiles(sortFiles(files))
       return
     }
     const timer = setTimeout(() => {
       const q = search.toLowerCase()
-      setFilteredDirs(data.dirs.filter(d => d.name.toLowerCase().includes(q)))
+      let dirs = data.dirs.filter(d => d.name.toLowerCase().includes(q))
       let files = data.files.filter(f => f.name.toLowerCase().includes(q))
       const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
       if (filterExts) files = files.filter(f => filterExts.includes(f.ext?.toLowerCase()))
-      setFilteredFiles(files)
+      setFilteredDirs(sortDirs(dirs))
+      setFilteredFiles(sortFiles(files))
     }, 150)
     return () => clearTimeout(timer)
-  }, [data, search, searchMode, typeFilter])
+  }, [data, search, searchMode, typeFilter, sortBy, sortDir])
 
   // Reset visible count when search changes
   useEffect(() => { setVisibleCount(20) }, [search, searchMode])
@@ -576,6 +610,27 @@ export default function BrowsePage() {
           <FolderIcon sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.dirs.length} folderów, <InsertDriveFile sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.files.length} plików
         </Typography>
         <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
+          {/* Sort controls */}
+          <FormControl size="small" sx={{ minWidth: 100 }}>
+            <Select
+              value={sortBy}
+              onChange={(e) => setSortBy(e.target.value)}
+              variant="outlined"
+              sx={{ height: 32, fontSize: '0.8rem' }}
+            >
+              <MenuItem value="name">Nazwa</MenuItem>
+              <MenuItem value="size">Rozmiar</MenuItem>
+              <MenuItem value="type">Typ</MenuItem>
+            </Select>
+          </FormControl>
+          <IconButton
+            size="small"
+            onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
+            title={sortDir === 'asc' ? 'Rosnąco' : 'Malejąco'}
+          >
+            {sortDir === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
+          </IconButton>
+
           <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
             <ToggleButton value="list"><Tooltip title="Widok listy"><ViewList /></Tooltip></ToggleButton>
             <ToggleButton value="grid"><Tooltip title="Widok siatki"><GridView /></Tooltip></ToggleButton>
