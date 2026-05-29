@@ -200,20 +200,24 @@ export async function getZipProgress(jobId) {
   return res.json()
 }
 
+function encodePath(rel) {
+  return rel.split('/').map(encodeURIComponent).join('/')
+}
+
 export function getZipDownloadUrl(jobId) {
   return `${API_BASE}/api/zip-download/${jobId}`
 }
 
 export function getViewUrl(rel) {
-  return `${API_BASE}/view/${encodeURIComponent(rel)}`
+  return `${API_BASE}/view/${encodePath(rel)}`
 }
 
 export function getDownloadUrl(rel) {
-  return `${API_BASE}/download/${encodeURIComponent(rel)}`
+  return `${API_BASE}/download/${encodePath(rel)}`
 }
 
 export function getDownloadFolderUrl(rel) {
-  return `${API_BASE}/download-folder/${encodeURIComponent(rel)}`
+  return `${API_BASE}/download-folder/${encodePath(rel)}`
 }
 
 export function getAdminViewUrl(fileId) {

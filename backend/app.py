@@ -18,9 +18,10 @@ load_dotenv(Path(__file__).parent / ".env")
 app = FastAPI(title="Paczka INFA - File Server")
 
 CORS_ORIGIN = os.getenv("CORS_ORIGIN", "*")
+_cors_origins = [o.strip() for o in CORS_ORIGIN.split(",")]
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[CORS_ORIGIN] if CORS_ORIGIN != "*" else ["*"],
+    allow_origins=_cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -630,8 +631,12 @@ async def view_raw(path: str):
           '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
           '.doc':'application/msword','.ppt':'application/vnd.ms-powerpoint',
           '.xls':'application/vnd.ms-excel'}
-    return FileResponse(target, media_type=mt.get(ext, 'application/octet-stream'),
-                        headers={"Content-Disposition": "inline"})
+    return FileResponse(
+        target,
+        media_type=mt.get(ext, 'application/octet-stream'),
+        filename=target.name,
+        headers={"Content-Disposition": "inline", "Access-Control-Expose-Headers": "Content-Length"},
+    )
 
 
 
