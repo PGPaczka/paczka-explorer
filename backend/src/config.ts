@@ -16,3 +16,12 @@ export const PORT = parseInt(process.env.PORT || '8081');
 export const GITHUB_PR_URL = process.env.GITHUB_PR_URL || 'https://github.com/dommilosz/Paczka-eti-pg/pulls';
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 export const MAX_FILES_PER_UPLOAD = 10;
+
+// Rate limiting
+export const RATE_LIMIT_WINDOW_MS = parseInt(process.env.RATE_LIMIT_WINDOW_MS || '60000');
+export const RATE_LIMIT_MAX_REQUESTS = parseInt(process.env.RATE_LIMIT_MAX_REQUESTS || '100');
+export const RATE_LIMIT_UPLOAD_MAX = parseInt(process.env.RATE_LIMIT_UPLOAD_MAX || '10');
+export const RATE_LIMIT_LOGIN_MAX = parseInt(process.env.RATE_LIMIT_LOGIN_MAX || '5');
+
+// Discord webhook
+export const DISCORD_WEBHOOK_URL = process.env.DISCORD_WEBHOOK_URL || '';

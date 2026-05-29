@@ -2,8 +2,8 @@ import { useState, useEffect, useMemo, useRef, useDeferredValue } from 'react'
 import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Container, Box, Breadcrumbs, Link, Typography, TextField, InputAdornment,
-  List, ListItem, ListItemIcon, ListItemText,
-  Checkbox, IconButton, Button, Paper, Snackbar, Alert, Tooltip,
+  List, ListItem, ListItemIcon, ListItemText, Menu, MenuItem,
+  Checkbox, IconButton, Button, Paper, Snackbar, Alert, Tooltip, Chip,
   Fab, Divider, Stack, LinearProgress, ToggleButton, ToggleButtonGroup,
 } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
@@ -18,13 +18,26 @@ import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
+import ExpandMore from '@mui/icons-material/ExpandMore'
+import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
 import PendingSection from '../components/PendingSection'
 import ZipProgressDialog from '../components/ZipProgressDialog'
 import FileEntry from '../components/FileEntry'
+
+// File type filter definitions
+const FILE_TYPE_FILTERS = [
+  { key: 'all', label: 'Wszystkie', exts: null },
+  { key: 'pdf', label: '📄 PDF', exts: ['.pdf'] },
+  { key: 'code', label: '💻 Kod', exts: ['.py','.java','.c','.cpp','.cs','.js','.ts','.html','.css','.h','.hpp','.asm','.s','.m','.sql','.rb','.php','.r','.kt','.swift','.go','.rs','.hs','.pl','.pro'] },
+  { key: 'office', label: '📝 Office', exts: ['.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods'] },
+  { key: 'image', label: '🖼️ Obrazy', exts: ['.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg'] },
+  { key: 'archive', label: '📦 Archiwa', exts: ['.zip','.rar','.7z'] },
+  { key: 'text', label: '📋 Tekst', exts: ['.txt','.md','.csv','.log','.cfg','.ini'] },
+  { key: 'media', label: '🎬 Media', exts: ['.mp4','.webm','.mov','.wav','.mp3','.ogg','.flac'] },
+]
 
 export default function BrowsePage() {
   const location = useLocation()
@@ -56,6 +69,12 @@ export default function BrowsePage() {
   const [filteredDirs, setFilteredDirs] = useState([])
   const [filteredFiles, setFilteredFiles] = useState([])
   const [visibleCount, setVisibleCount] = useState(20)
+  const [typeFilter, setTypeFilter] = useState('all')
+  const [breadcrumbAnchor, setBreadcrumbAnchor] = useState(null)
+  const [breadcrumbMenuPath, setBreadcrumbMenuPath] = useState('')
+  const [breadcrumbSubdirs, setBreadcrumbSubdirs] = useState([])
+  const [dragging, setDragging] = useState(false)
+  const dragCounter = useRef(0)
   const abortRef = useRef(null)
 
   // Debounce: inputValue -> search (keeps typing instant, delays filtering)
@@ -126,16 +145,24 @@ export default function BrowsePage() {
     if (!data) { setFilteredDirs([]); setFilteredFiles([]); return }
     if (!search || searchMode === 'global') {
       setFilteredDirs(data.dirs)
-      setFilteredFiles(data.files)
+      const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
+      if (filterExts) {
+        setFilteredFiles(data.files.filter(f => filterExts.includes(f.ext?.toLowerCase())))
+      } else {
+        setFilteredFiles(data.files)
+      }
       return
     }
     const timer = setTimeout(() => {
       const q = search.toLowerCase()
       setFilteredDirs(data.dirs.filter(d => d.name.toLowerCase().includes(q)))
-      setFilteredFiles(data.files.filter(f => f.name.toLowerCase().includes(q)))
+      let files = data.files.filter(f => f.name.toLowerCase().includes(q))
+      const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
+      if (filterExts) files = files.filter(f => filterExts.includes(f.ext?.toLowerCase()))
+      setFilteredFiles(files)
     }, 150)
     return () => clearTimeout(timer)
-  }, [data, search, searchMode])
+  }, [data, search, searchMode, typeFilter])
 
   // Reset visible count when search changes
   useEffect(() => { setVisibleCount(20) }, [search, searchMode])
@@ -270,6 +297,65 @@ export default function BrowsePage() {
     setSnackbar({ open: true, message, severity })
   }
 
+  // Breadcrumb autocomplete: show subdirectories on click
+  const handleBreadcrumbClick = async (e, bc) => {
+    e.preventDefault()
+    setBreadcrumbAnchor(e.currentTarget)
+    setBreadcrumbMenuPath(bc.path)
+    try {
+      const result = await fetchBrowse(bc.path)
+      setBreadcrumbSubdirs(result.dirs || [])
+    } catch {
+      setBreadcrumbSubdirs([])
+    }
+  }
+
+  const handleBreadcrumbMenuClose = () => {
+    setBreadcrumbAnchor(null)
+    setBreadcrumbSubdirs([])
+  }
+
+  const handleBreadcrumbNavigate = (dirPath) => {
+    handleBreadcrumbMenuClose()
+    handleNavigate(dirPath)
+  }
+
+  // Drag & drop on page
+  const handlePageDragEnter = (e) => {
+    e.preventDefault()
+    dragCounter.current++
+    if (e.dataTransfer.types.includes('Files')) {
+      setDragging(true)
+    }
+  }
+
+  const handlePageDragLeave = (e) => {
+    e.preventDefault()
+    dragCounter.current--
+    if (dragCounter.current <= 0) {
+      dragCounter.current = 0
+      setDragging(false)
+    }
+  }
+
+  const handlePageDragOver = (e) => {
+    e.preventDefault()
+  }
+
+  const handlePageDrop = (e) => {
+    e.preventDefault()
+    dragCounter.current = 0
+    setDragging(false)
+    const droppedFiles = Array.from(e.dataTransfer.files)
+    if (droppedFiles.length > 0) {
+      setUploadOpen(true)
+      // Pass files to upload dialog via a small delay to let it mount
+      setTimeout(() => {
+        window.dispatchEvent(new CustomEvent('paczka-drop-files', { detail: droppedFiles }))
+      }, 100)
+    }
+  }
+
   if (loading && !data) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
@@ -281,10 +367,33 @@ export default function BrowsePage() {
   if (!data) return null
 
   return (
-    <Container maxWidth="lg" sx={{ py: 3 }}>
+    <Container
+      maxWidth="lg"
+      sx={{ py: 3, position: 'relative' }}
+      onDragEnter={handlePageDragEnter}
+      onDragLeave={handlePageDragLeave}
+      onDragOver={handlePageDragOver}
+      onDrop={handlePageDrop}
+    >
+      {/* Drag overlay */}
+      {dragging && (
+        <Box sx={{
+          position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+          bgcolor: 'rgba(25, 118, 210, 0.08)', border: '3px dashed',
+          borderColor: 'primary.main', zIndex: 1200, display: 'flex',
+          alignItems: 'center', justifyContent: 'center', pointerEvents: 'none',
+        }}>
+          <Paper sx={{ p: 4, textAlign: 'center' }}>
+            <CloudUpload sx={{ fontSize: 64, color: 'primary.main', mb: 1 }} />
+            <Typography variant="h6">Upuść pliki aby wrzucić</Typography>
+          </Paper>
+        </Box>
+      )}
+
       {/* Refreshing indicator (non-blocking) */}
       {refreshing && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300 }} />}
-      {/* Breadcrumb */}
+
+      {/* Breadcrumb with autocomplete */}
       <Breadcrumbs sx={{ mb: 2 }}>
         {data.breadcrumb.map((bc, i) => (
           i === data.breadcrumb.length - 1 ? (
@@ -296,14 +405,39 @@ export default function BrowsePage() {
               key={i}
               component="button"
               underline="hover"
-              onClick={() => handleNavigate(bc.path)}
-              sx={{ cursor: 'pointer' }}
+              onClick={(e) => handleBreadcrumbClick(e, bc)}
+              onDoubleClick={() => handleNavigate(bc.path)}
+              sx={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 0.3 }}
             >
               {i === 0 ? '🏠 ' : ''}{bc.name}
+              <ExpandMore sx={{ fontSize: 16 }} />
             </Link>
           )
         ))}
       </Breadcrumbs>
+
+      {/* Breadcrumb subdirectory menu */}
+      <Menu
+        anchorEl={breadcrumbAnchor}
+        open={Boolean(breadcrumbAnchor)}
+        onClose={handleBreadcrumbMenuClose}
+        PaperProps={{ sx: { maxHeight: 300, minWidth: 200 } }}
+      >
+        <MenuItem onClick={() => handleBreadcrumbNavigate(breadcrumbMenuPath)}>
+          <ListItemIcon><FolderIcon fontSize="small" color="primary" /></ListItemIcon>
+          <ListItemText primary="Otwórz ten folder" primaryTypographyProps={{ fontWeight: 500 }} />
+        </MenuItem>
+        <Divider />
+        {breadcrumbSubdirs.length === 0 && (
+          <MenuItem disabled><ListItemText primary="Brak podfolderów" /></MenuItem>
+        )}
+        {breadcrumbSubdirs.map(dir => (
+          <MenuItem key={dir.rel} onClick={() => handleBreadcrumbNavigate(dir.rel)}>
+            <ListItemIcon><FolderIcon fontSize="small" /></ListItemIcon>
+            <ListItemText primary={dir.name} />
+          </MenuItem>
+        ))}
+      </Menu>
 
       {/* Search */}
       <Stack direction="row" spacing={1} sx={{ mb: 1 }} alignItems="center">
@@ -344,6 +478,21 @@ export default function BrowsePage() {
           Operatory: <strong>AND</strong> (lub &amp;) — oba warunki · <strong>OR</strong> (lub |) — jeden z warunków · <strong>NOT</strong> (lub !) — wyklucz. Przykład: <em>.pdf AND algebra NOT poprawka</em>
         </Typography>
       )}
+
+      {/* File type filter */}
+      <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5 }}>
+        {FILE_TYPE_FILTERS.map(ft => (
+          <Chip
+            key={ft.key}
+            label={ft.label}
+            size="small"
+            variant={typeFilter === ft.key ? 'filled' : 'outlined'}
+            color={typeFilter === ft.key ? 'primary' : 'default'}
+            onClick={() => setTypeFilter(ft.key === typeFilter ? 'all' : ft.key)}
+            sx={{ cursor: 'pointer' }}
+          />
+        ))}
+      </Stack>
 
       {/* Global search results */}
       {searchMode === 'global' && search.length >= 2 && (

@@ -5,6 +5,8 @@ import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { FILES_ROOT, PENDING_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '../config';
 import { checkAdmin, safePath, loadPending, savePending } from '../helpers';
+import { rateLimitUpload } from '../rateLimit';
+import { notifyNewUpload } from '../discord';
 
 const router = Router();
 
@@ -29,7 +31,7 @@ router.get('/api/pending/:path(*)?', (req, res) => {
 
 // ============ UPLOAD ============
 
-router.post('/api/upload', upload.array('file', MAX_FILES_PER_UPLOAD), (req, res) => {
+router.post('/api/upload', rateLimitUpload, upload.array('file', MAX_FILES_PER_UPLOAD), (req, res) => {
   const files = req.files as Express.Multer.File[];
   if (!files || !files.length) return res.status(400).json({ detail: 'Brak plików' });
 
@@ -74,6 +76,14 @@ router.post('/api/upload', upload.array('file', MAX_FILES_PER_UPLOAD), (req, res
   }
 
   savePending(pending);
+
+  // Discord notification (fire-and-forget)
+  notifyNewUpload({
+    uploader: uploaderName,
+    targetPath,
+    files: uploadedFiles.map(f => ({ original_name: f.original_name, size: f.size })),
+  });
+
   res.json({ success: true, message: 'Pliki wysłane do zatwierdzenia' });
 });
 
@@ -94,6 +104,16 @@ router.post('/api/create-folder', (req, res) => {
     uploader: 'Anonim', ip: clientIp, uploaded_at: now, files: [],
   });
   savePending(pending);
+
+  // Discord notification (fire-and-forget)
+  notifyNewUpload({
+    uploader: 'Anonim',
+    targetPath: target_path,
+    files: [],
+    type: 'folder',
+    folderName: name,
+  });
+
   res.json({ success: true, message: 'Folder wysłany do zatwierdzenia' });
 });
 

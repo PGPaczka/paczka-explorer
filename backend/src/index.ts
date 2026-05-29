@@ -13,6 +13,7 @@ import zipRoutes from './routes/zip';
 import zipBrowseRoutes from './routes/zipBrowse';
 import adminRoutes from './routes/admin';
 import { loadIndex, watchIndex } from './search';
+import { rateLimitGeneral } from './rateLimit';
 
 // Ensure pending dir exists
 fs.mkdirSync(PENDING_DIR, { recursive: true });
@@ -32,6 +33,9 @@ app.use(cors({
 }));
 app.use(cookieParser());
 app.use(express.json());
+
+// Rate limiting on API routes
+app.use('/api/', rateLimitGeneral);
 
 // ============ ROUTES ============
 

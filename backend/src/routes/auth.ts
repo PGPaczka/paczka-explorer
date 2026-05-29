@@ -1,10 +1,11 @@
 import { Router } from 'express';
 import { ADMIN_PASSWORD } from '../config';
 import { hashPw, checkAdmin } from '../helpers';
+import { rateLimitLogin } from '../rateLimit';
 
 const router = Router();
 
-router.post('/api/login', (req, res) => {
+router.post('/api/login', rateLimitLogin, (req, res) => {
   const { password } = req.body || {};
   if (password === ADMIN_PASSWORD) {
     res.cookie('admin_token', hashPw(ADMIN_PASSWORD), {

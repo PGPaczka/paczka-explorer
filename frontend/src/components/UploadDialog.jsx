@@ -1,4 +1,4 @@
-import React, { useState, useRef } from 'react'
+import { useState, useRef, useEffect } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, DialogActions, Button, TextField,
   Typography, Box, List, ListItem, ListItemText, IconButton, Alert,
@@ -14,8 +14,20 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
   const [error, setError] = useState('')
   const inputRef = useRef()
 
-  const handleFileChange = (e) => {
-    const selected = Array.from(e.target.files || [])
+  // Listen for files dropped on the page
+  useEffect(() => {
+    if (!open) return
+    const handler = (e) => {
+      const dropped = e.detail
+      if (dropped && dropped.length > 0) {
+        validateAndSetFiles(dropped)
+      }
+    }
+    window.addEventListener('paczka-drop-files', handler)
+    return () => window.removeEventListener('paczka-drop-files', handler)
+  }, [open])
+
+  const validateAndSetFiles = (selected) => {
     if (selected.length > 10) {
       setError('Maksymalnie 10 plików na raz!')
       return
@@ -29,19 +41,17 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
     setFiles(selected)
   }
 
+  const handleFileChange = (e) => {
+    validateAndSetFiles(Array.from(e.target.files || []))
+  }
+
   const handleRemove = (idx) => {
     setFiles(prev => prev.filter((_, i) => i !== idx))
   }
 
   const handleDrop = (e) => {
     e.preventDefault()
-    const dropped = Array.from(e.dataTransfer.files)
-    if (dropped.length > 10) {
-      setError('Maksymalnie 10 plików na raz!')
-      return
-    }
-    setError('')
-    setFiles(dropped)
+    validateAndSetFiles(Array.from(e.dataTransfer.files))
   }
 
   const handleSubmit = async () => {
