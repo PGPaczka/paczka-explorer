@@ -23,6 +23,8 @@ import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
 import PendingSection from '../components/PendingSection'
 import ZipProgressDialog from '../components/ZipProgressDialog'
+import FileIcon from '../components/FileIcon'
+import FileEntry from '../components/FileEntry'
 
 export default function BrowsePage() {
   const location = useLocation()
@@ -41,6 +43,7 @@ export default function BrowsePage() {
   const [folderOpen, setFolderOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState(0)
+  const [previewFiles, setPreviewFiles] = useState([])
   const [zipDialogOpen, setZipDialogOpen] = useState(false)
   const [zipJobId, setZipJobId] = useState(null)
   const [zipTotalFiles, setZipTotalFiles] = useState(0)
@@ -169,9 +172,26 @@ export default function BrowsePage() {
       }
       return
     }
-    const idx = previewableFiles.findIndex(f => f.rel === file.rel)
+
+    // Determine which file list to use for the preview modal
+    let fileList
+    if (searchMode === 'global' && globalResults?.results) {
+      fileList = globalResults.results.filter(f => f.previewable)
+    } else if (data?.files) {
+      fileList = data.files.filter(f => f.previewable)
+    } else {
+      fileList = []
+    }
+
+    const idx = fileList.findIndex(f => f.rel === file.rel)
     if (idx >= 0) {
+      setPreviewFiles(fileList)
       setPreviewIndex(idx)
+      setPreviewOpen(true)
+    } else {
+      // File not in current list — open as single file preview
+      setPreviewFiles([file])
+      setPreviewIndex(0)
       setPreviewOpen(true)
     }
   }
@@ -300,60 +320,18 @@ export default function BrowsePage() {
               </Box>
               <List disablePadding sx={{ overflow: 'auto', flexGrow: 1 }}>
                 {globalResults.results.map((file) => (
-                  <ListItem
+                  <FileEntry
                     key={file.rel}
-                    sx={{
-                      borderBottom: '1px solid',
-                      borderColor: 'divider',
-                      '&:hover': { bgcolor: 'action.hover' },
-                    }}
-                  >
-                    <ListItemIcon sx={{ minWidth: 40, fontSize: 20 }}>
-                      {file.icon}
-                    </ListItemIcon>
-                    <ListItemText
-                      primary={
-                        file.previewable ? (
-                          <Link
-                            component="button"
-                            underline="hover"
-                            onClick={() => {
-                              // Navigate to the file's folder and preview
-                              const folderPath = file.path
-                              navigate(folderPath ? `/browse/${folderPath}` : '/browse')
-                            }}
-                            sx={{ textAlign: 'left', fontWeight: 500 }}
-                          >
-                            {file.name}
-                          </Link>
-                        ) : (
-                          <Link href={getDownloadUrl(file.rel)} underline="hover" sx={{ fontWeight: 500 }}>
-                            {file.name}
-                          </Link>
-                        )
-                      }
-                      secondary={
-                        <span>
-                          <Typography component="span" variant="caption" color="text.secondary">
-                            📂 {file.path || 'Główna'}
-                          </Typography>
-                          {' — '}{file.sizeFormatted}
-                          {file.description && <> — {file.description}</>}
-                          {file.semester && file.semester !== 'Ogólne' && (
-                            <Chip label={file.semester} size="small" sx={{ ml: 1, height: 18, fontSize: '0.7rem' }} />
-                          )}
-                          {file.subject && file.subject !== 'Ogólne' && (
-                            <Chip label={file.subject} size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: '0.7rem' }} />
-                          )}
-                        </span>
-                      }
-                    />
-                    <Tooltip title="Pobierz">
-                      <IconButton size="small" href={getDownloadUrl(file.rel)}>
-                        <Download fontSize="small" />
-                      </IconButton>
-                    </Tooltip>
-                  </ListItem>
+                    file={file}
+                    selected={selected.has(file.rel)}
+                    onToggleSelect={() => handleToggleSelect(file.rel)}
+                    onPreview={handlePreview}
+                    onRename={handleRename}
+                    onDelete={handleDeleteFile}
+                    onNavigatePath={(p) => navigate(p ? `/browse/${p}` : '/browse')}
+                    isAdmin={data?.isAdmin}
+                    showPath
+                  />
                 ))}
                 {globalResults.results.length === 0 && (
                   <ListItem>
@@ -469,75 +447,16 @@ export default function BrowsePage() {
           ))}
 
           {filteredFiles.map((file) => (
-            <ListItem
+            <FileEntry
               key={file.rel}
-              sx={{
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                bgcolor: selected.has(file.rel) ? 'action.selected' : 'inherit',
-                '&:hover': { bgcolor: 'action.hover' },
-              }}
-            >
-              <Checkbox
-                size="small"
-                checked={selected.has(file.rel)}
-                onChange={() => handleToggleSelect(file.rel)}
-                sx={{ mr: 1 }}
-              />
-              <ListItemIcon sx={{ minWidth: 40, fontSize: 20 }}>
-                {file.icon}
-              </ListItemIcon>
-              <ListItemText
-                primary={
-                  file.previewable ? (
-                    <Link
-                      component="button"
-                      underline="hover"
-                      onClick={() => handlePreview(file)}
-                      sx={{ textAlign: 'left', fontWeight: 500 }}
-                    >
-                      {file.name}
-                    </Link>
-                  ) : (
-                    <Link href={getDownloadUrl(file.rel)} underline="hover" sx={{ fontWeight: 500 }}>
-                      {file.name}
-                    </Link>
-                  )
-                }
-                secondary={
-                  <span>
-                    {file.sizeFormatted}
-                    {file.description && <> — {file.description}</>}
-                  </span>
-                }
-              />
-              <Tooltip title="Pobierz">
-                <IconButton size="small" href={getDownloadUrl(file.rel)}>
-                  <Download fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              {data.isAdmin && (
-                <Tooltip title="Zmień nazwę">
-                  <IconButton
-                    size="small"
-                    onClick={() => handleRename(file)}
-                  >
-                    <EditIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-              {data.isAdmin && (
-                <Tooltip title="Usuń plik">
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={() => handleDeleteFile(file)}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </ListItem>
+              file={file}
+              selected={selected.has(file.rel)}
+              onToggleSelect={() => handleToggleSelect(file.rel)}
+              onPreview={handlePreview}
+              onRename={handleRename}
+              onDelete={handleDeleteFile}
+              isAdmin={data.isAdmin}
+            />
           ))}
 
           {filteredDirs.length === 0 && filteredFiles.length === 0 && (
@@ -596,7 +515,7 @@ export default function BrowsePage() {
       <PreviewModal
         open={previewOpen}
         onClose={() => setPreviewOpen(false)}
-        files={previewableFiles}
+        files={previewFiles}
         index={previewIndex}
         onIndexChange={setPreviewIndex}
       />

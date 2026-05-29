@@ -63,11 +63,6 @@ router.get('/api/browse/:path(*)?', (req, res) => {
             if (linkUrl) {
               fileEntry.linkUrl = linkUrl;
               fileEntry.linkService = detectLinkService(linkUrl);
-              const serviceIcons: Record<string, string> = {
-                youtube: '▶️', github: '🐙', gdrive: '💾', gdocs: '📝',
-                discord: '💬', facebook: '👤', wikipedia: '📖', stackoverflow: '💡', web: '🔗',
-              };
-              fileEntry.icon = serviceIcons[fileEntry.linkService] || '🔗';
             }
           } catch {}
         }
