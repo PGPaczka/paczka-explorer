@@ -19,6 +19,8 @@ import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import ExpandMore from '@mui/icons-material/ExpandMore'
+import ViewList from '@mui/icons-material/ViewList'
+import GridView from '@mui/icons-material/GridView'
 import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
@@ -26,6 +28,7 @@ import PreviewModal from '../components/PreviewModal'
 import PendingSection from '../components/PendingSection'
 import ZipProgressDialog from '../components/ZipProgressDialog'
 import FileEntry from '../components/FileEntry'
+import FileGridEntry from '../components/FileGridEntry'
 
 // File type filter definitions
 const FILE_TYPE_FILTERS = [
@@ -74,6 +77,7 @@ export default function BrowsePage() {
   const [breadcrumbMenuPath, setBreadcrumbMenuPath] = useState('')
   const [breadcrumbSubdirs, setBreadcrumbSubdirs] = useState([])
   const [dragging, setDragging] = useState(false)
+  const [viewMode, setViewMode] = useState(() => localStorage.getItem('paczka-view-mode') || 'list')
   const dragCounter = useRef(0)
   const abortRef = useRef(null)
 
@@ -295,6 +299,17 @@ export default function BrowsePage() {
 
   const showSnackbar = (message, severity = 'success') => {
     setSnackbar({ open: true, message, severity })
+  }
+
+  const handleCopyLink = () => {
+    showSnackbar('Link skopiowany do schowka')
+  }
+
+  const handleViewModeChange = (_, val) => {
+    if (val) {
+      setViewMode(val)
+      localStorage.setItem('paczka-view-mode', val)
+    }
   }
 
   // Breadcrumb autocomplete: show subdirectories on click
@@ -521,6 +536,7 @@ export default function BrowsePage() {
                     onPreview={handlePreview}
                     onRename={handleRename}
                     onDelete={handleDeleteFile}
+                    onCopyLink={handleCopyLink}
                     onNavigatePath={(p) => navigate(p ? `/browse/${p}` : '/browse')}
                     isAdmin={data?.isAdmin}
                     showPath
@@ -559,7 +575,11 @@ export default function BrowsePage() {
         <Typography variant="body2" color="text.secondary">
           <FolderIcon sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.dirs.length} folderów, <InsertDriveFile sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.files.length} plików
         </Typography>
-        <Stack direction="row" gap={1} flexWrap="wrap">
+        <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
+          <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
+            <ToggleButton value="list"><Tooltip title="Widok listy"><ViewList /></Tooltip></ToggleButton>
+            <ToggleButton value="grid"><Tooltip title="Widok siatki"><GridView /></Tooltip></ToggleButton>
+          </ToggleButtonGroup>
           <Button size="small" startIcon={<SelectAll />} onClick={handleSelectAll}>
             {selected.size > 0 ? 'Odznacz' : 'Zaznacz'} wszystkie
           </Button>
@@ -587,96 +607,139 @@ export default function BrowsePage() {
         <PendingSection path={currentPath} onRefresh={() => loadData(true)} />
       )}
 
-      {/* File list */}
-      <Paper variant="outlined" sx={{ mb: 3 }}>
-        <List disablePadding>
-          {deferredDirs.map((dir) => (
-            <ListItem
-              key={dir.rel}
-              button
-              onClick={() => handleNavigate(dir.rel)}
-              sx={{
-                borderBottom: '1px solid',
-                borderColor: 'divider',
-                bgcolor: selected.has(dir.rel) ? 'action.selected' : 'inherit',
-              }}
-            >
-              <Checkbox
-                size="small"
-                checked={selected.has(dir.rel)}
-                onClick={(e) => { e.stopPropagation(); handleToggleSelect(dir.rel) }}
-                sx={{ mr: 1 }}
-              />
-              <ListItemIcon sx={{ minWidth: 40 }}>
-                <FolderIcon color="primary" />
-              </ListItemIcon>
-              <ListItemText
-                primary={dir.name}
-                secondary={dir.isZip || dir.isInZip ? (dir.isZip ? 'archiwum ZIP' : '') : `${dir.fileCount} plików`}
-              />
-              <Tooltip title="Pobierz ZIP">
-                <IconButton
+      {/* File list / grid */}
+      {viewMode === 'list' ? (
+        <Paper variant="outlined" sx={{ mb: 3 }}>
+          <List disablePadding>
+            {deferredDirs.map((dir) => (
+              <ListItem
+                key={dir.rel}
+                button
+                onClick={() => handleNavigate(dir.rel)}
+                sx={{
+                  borderBottom: '1px solid',
+                  borderColor: 'divider',
+                  bgcolor: selected.has(dir.rel) ? 'action.selected' : 'inherit',
+                }}
+              >
+                <Checkbox
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); dir.isZip ? window.location.href = getDownloadUrl(dir.rel) : handleDownloadFolder(dir.rel) }}
-                >
-                  <Download fontSize="small" />
-                </IconButton>
-              </Tooltip>
-              {data.isAdmin && (
-                <Tooltip title="Zmień nazwę">
+                  checked={selected.has(dir.rel)}
+                  onClick={(e) => { e.stopPropagation(); handleToggleSelect(dir.rel) }}
+                  sx={{ mr: 1 }}
+                />
+                <ListItemIcon sx={{ minWidth: 40 }}>
+                  <FolderIcon color="primary" />
+                </ListItemIcon>
+                <ListItemText
+                  primary={dir.name}
+                  secondary={dir.isZip || dir.isInZip ? (dir.isZip ? 'archiwum ZIP' : '') : `${dir.fileCount} plików`}
+                />
+                <Tooltip title="Pobierz ZIP">
                   <IconButton
                     size="small"
-                    onClick={(e) => { e.stopPropagation(); handleRename(dir) }}
+                    onClick={(e) => { e.stopPropagation(); dir.isZip ? window.location.href = getDownloadUrl(dir.rel) : handleDownloadFolder(dir.rel) }}
                   >
-                    <EditIcon fontSize="small" />
+                    <Download fontSize="small" />
                   </IconButton>
                 </Tooltip>
-              )}
-              {data.isAdmin && (
-                <Tooltip title="Usuń folder">
-                  <IconButton
-                    size="small"
-                    color="error"
-                    onClick={(e) => { e.stopPropagation(); handleDeleteFolder(dir) }}
-                  >
-                    <DeleteIcon fontSize="small" />
-                  </IconButton>
-                </Tooltip>
-              )}
-            </ListItem>
-          ))}
+                {data.isAdmin && (
+                  <Tooltip title="Zmień nazwę">
+                    <IconButton
+                      size="small"
+                      onClick={(e) => { e.stopPropagation(); handleRename(dir) }}
+                    >
+                      <EditIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+                {data.isAdmin && (
+                  <Tooltip title="Usuń folder">
+                    <IconButton
+                      size="small"
+                      color="error"
+                      onClick={(e) => { e.stopPropagation(); handleDeleteFolder(dir) }}
+                    >
+                      <DeleteIcon fontSize="small" />
+                    </IconButton>
+                  </Tooltip>
+                )}
+              </ListItem>
+            ))}
 
-          {deferredFiles.slice(0, visibleCount).map((file) => (
-            <FileEntry
-              key={file.rel}
-              file={file}
-              selected={selected.has(file.rel)}
-              onToggleSelect={() => handleToggleSelect(file.rel)}
-              onPreview={handlePreview}
-              onRename={handleRename}
-              onDelete={handleDeleteFile}
-              isAdmin={data.isAdmin}
-            />
-          ))}
+            {deferredFiles.slice(0, visibleCount).map((file) => (
+              <FileEntry
+                key={file.rel}
+                file={file}
+                selected={selected.has(file.rel)}
+                onToggleSelect={() => handleToggleSelect(file.rel)}
+                onPreview={handlePreview}
+                onRename={handleRename}
+                onDelete={handleDeleteFile}
+                onCopyLink={handleCopyLink}
+                isAdmin={data.isAdmin}
+              />
+            ))}
 
+            {deferredFiles.length > visibleCount && (
+              <ListItem sx={{ justifyContent: 'center' }}>
+                <Button onClick={() => setVisibleCount(v => v + 50)}>
+                  Pokaż więcej ({deferredFiles.length - visibleCount} pozostało)
+                </Button>
+              </ListItem>
+            )}
+
+            {deferredDirs.length === 0 && deferredFiles.length === 0 && (
+              <ListItem>
+                <ListItemText
+                  primary="Folder jest pusty"
+                  sx={{ textAlign: 'center', color: 'text.secondary' }}
+                />
+              </ListItem>
+            )}
+          </List>
+        </Paper>
+      ) : (
+        /* Grid view */
+        <Box sx={{ mb: 3 }}>
+          <Box sx={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fill, minmax(130px, 1fr))', gap: 1.5 }}>
+            {deferredDirs.map((dir) => (
+              <FileGridEntry
+                key={dir.rel}
+                file={dir}
+                isDir
+                selected={selected.has(dir.rel)}
+                onToggleSelect={() => handleToggleSelect(dir.rel)}
+                onNavigate={handleNavigate}
+                onDownload={dir.isZip ? null : handleDownloadFolder}
+                fileCount={dir.fileCount}
+              />
+            ))}
+            {deferredFiles.slice(0, visibleCount).map((file) => (
+              <FileGridEntry
+                key={file.rel}
+                file={file}
+                selected={selected.has(file.rel)}
+                onToggleSelect={() => handleToggleSelect(file.rel)}
+                onPreview={handlePreview}
+                onCopyLink={handleCopyLink}
+              />
+            ))}
+          </Box>
           {deferredFiles.length > visibleCount && (
-            <ListItem sx={{ justifyContent: 'center' }}>
+            <Box sx={{ textAlign: 'center', mt: 2 }}>
               <Button onClick={() => setVisibleCount(v => v + 50)}>
                 Pokaż więcej ({deferredFiles.length - visibleCount} pozostało)
               </Button>
-            </ListItem>
+            </Box>
           )}
-
           {deferredDirs.length === 0 && deferredFiles.length === 0 && (
-            <ListItem>
-              <ListItemText
-                primary="Folder jest pusty"
-                sx={{ textAlign: 'center', color: 'text.secondary' }}
-              />
-            </ListItem>
+            <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
+              Folder jest pusty
+            </Typography>
           )}
-        </List>
-      </Paper>
+        </Box>
+      )}
 
       {/* Upload & Create Folder section */}
       <Paper variant="outlined" sx={{ p: 3 }}>

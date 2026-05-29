@@ -7,8 +7,9 @@ import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import Visibility from '@mui/icons-material/Visibility'
 import FolderOpen from '@mui/icons-material/FolderOpen'
+import LinkIcon from '@mui/icons-material/Link'
 import FileIcon from './FileIcon'
-import { getDownloadUrl } from '../api'
+import { getDownloadUrl, getViewUrl } from '../api'
 
 /**
  * Unified file entry row used in both folder view and search results.
@@ -20,6 +21,7 @@ import { getDownloadUrl } from '../api'
  * - onPreview: (file) => void
  * - onRename: (file) => void (optional, admin only)
  * - onDelete: (file) => void (optional, admin only)
+ * - onCopyLink: (file) => void (optional, copy link handler)
  * - onNavigatePath: (path) => void (optional, for search results path click)
  * - isAdmin: boolean
  * - showPath: boolean (show folder path in secondary, for search results)
@@ -28,10 +30,17 @@ import { getDownloadUrl } from '../api'
  * - hideCheckbox: boolean (hide checkbox)
  */
 const FileEntry = memo(function FileEntry({
-  file, selected = false, onToggleSelect, onPreview, onRename, onDelete, onNavigatePath,
+  file, selected = false, onToggleSelect, onPreview, onRename, onDelete, onNavigatePath, onCopyLink,
   isAdmin = false, showPath = false, extraActions, hideDownload = false, hideCheckbox = false,
 }) {
   const dlUrl = file.downloadUrl || getDownloadUrl(file.rel)
+
+  const handleCopyLink = () => {
+    const url = `${window.location.origin}/view/${file.rel.split('/').map(encodeURIComponent).join('/')}`
+    navigator.clipboard.writeText(url).then(() => {
+      onCopyLink?.(file)
+    }).catch(() => {})
+  }
   return (
     <ListItem
       sx={{
@@ -111,6 +120,11 @@ const FileEntry = memo(function FileEntry({
           </IconButton>
         </Tooltip>
       )}
+      <Tooltip title="Kopiuj link">
+        <IconButton size="small" onClick={handleCopyLink}>
+          <LinkIcon fontSize="small" />
+        </IconButton>
+      </Tooltip>
       {isAdmin && onRename && (
         <Tooltip title="Zmień nazwę">
           <IconButton size="small" onClick={() => onRename(file)}>

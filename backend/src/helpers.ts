@@ -105,6 +105,28 @@ export function readdirRecursive(dir: string): string[] {
   return results;
 }
 
+// countFiles cache with 60s TTL
+const _countCache: Map<string, { count: number; expires: number }> = new Map();
+const COUNT_CACHE_TTL = 60000;
+
 export function countFiles(dir: string): number {
-  return readdirRecursive(dir).length;
+  const now = Date.now();
+  const cached = _countCache.get(dir);
+  if (cached && now < cached.expires) return cached.count;
+
+  const count = readdirRecursive(dir).length;
+  _countCache.set(dir, { count, expires: now + COUNT_CACHE_TTL });
+  return count;
+}
+
+// Invalidate cache for a specific directory (call after file changes)
+export function invalidateCountCache(dir?: string): void {
+  if (dir) {
+    // Invalidate this dir and all parents
+    for (const [key] of _countCache) {
+      if (dir.startsWith(key) || key.startsWith(dir)) _countCache.delete(key);
+    }
+  } else {
+    _countCache.clear();
+  }
 }
