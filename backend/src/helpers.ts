@@ -45,10 +45,11 @@ const PREVIEWABLE_IMAGE = new Set(['.jpg','.jpeg','.png','.gif','.bmp','.webp','
 const PREVIEWABLE_PDF = new Set(['.pdf']);
 const PREVIEWABLE_OFFICE = new Set(['.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods']);
 const PREVIEWABLE_MARKDOWN = new Set(['.md']);
+const PREVIEWABLE_LINK = new Set(['.url','.webloc']);
 
 export function isPreviewable(ext: string): boolean {
   ext = ext.toLowerCase();
-  return PREVIEWABLE_TEXT.has(ext) || PREVIEWABLE_IMAGE.has(ext) || PREVIEWABLE_PDF.has(ext) || PREVIEWABLE_OFFICE.has(ext) || PREVIEWABLE_MARKDOWN.has(ext);
+  return PREVIEWABLE_TEXT.has(ext) || PREVIEWABLE_IMAGE.has(ext) || PREVIEWABLE_PDF.has(ext) || PREVIEWABLE_OFFICE.has(ext) || PREVIEWABLE_MARKDOWN.has(ext) || PREVIEWABLE_LINK.has(ext);
 }
 
 export function getPreviewType(ext: string): string | null {
@@ -56,6 +57,7 @@ export function getPreviewType(ext: string): string | null {
   if (PREVIEWABLE_IMAGE.has(ext)) return 'image';
   if (PREVIEWABLE_PDF.has(ext)) return 'pdf';
   if (PREVIEWABLE_MARKDOWN.has(ext)) return 'markdown';
+  if (PREVIEWABLE_LINK.has(ext)) return 'link';
   if (PREVIEWABLE_TEXT.has(ext)) return 'text';
   if (PREVIEWABLE_OFFICE.has(ext)) return 'office';
   return null;

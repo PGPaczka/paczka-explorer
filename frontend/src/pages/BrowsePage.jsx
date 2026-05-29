@@ -17,7 +17,7 @@ import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import { fetchBrowse, searchFiles, getDownloadUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
+import { fetchBrowse, searchFiles, getDownloadUrl, getViewUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
@@ -147,6 +147,28 @@ export default function BrowsePage() {
   }
 
   const handlePreview = (file) => {
+    // For link files (.url, .webloc), open directly in new tab
+    if (file.previewType === 'link') {
+      if (file.linkUrl) {
+        window.open(file.linkUrl, '_blank', 'noopener')
+      } else {
+        fetch(getViewUrl(file.rel))
+          .then(r => r.text())
+          .then(text => {
+            let url = ''
+            const urlMatch = text.match(/URL=(.+)/i)
+            if (urlMatch) url = urlMatch[1].trim()
+            else {
+              const hrefMatch = text.match(/<string>(https?:\/\/[^<]+)<\/string>/i)
+              if (hrefMatch) url = hrefMatch[1].trim()
+            }
+            if (url) window.open(url, '_blank', 'noopener')
+            else showSnackbar('Nie udało się odczytać linku z pliku')
+          })
+          .catch(() => showSnackbar('Nie udało się otworzyć linku'))
+      }
+      return
+    }
     const idx = previewableFiles.findIndex(f => f.rel === file.rel)
     if (idx >= 0) {
       setPreviewIndex(idx)

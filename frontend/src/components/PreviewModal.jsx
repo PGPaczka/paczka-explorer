@@ -1,24 +1,30 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import {
   Dialog, DialogTitle, DialogContent, IconButton, Typography, Stack, Button, Box,
-  LinearProgress,
+  LinearProgress, ToggleButtonGroup, ToggleButton,
 } from '@mui/material'
 import Close from '@mui/icons-material/Close'
 import ArrowBack from '@mui/icons-material/ArrowBack'
 import ArrowForward from '@mui/icons-material/ArrowForward'
 import Download from '@mui/icons-material/Download'
+import Code from '@mui/icons-material/Code'
+import Article from '@mui/icons-material/Article'
 import { getViewUrl, getDownloadUrl, getAdminViewUrl } from '../api'
 
 // Individual slide renderer - handles one file preview
-function PreviewSlide({ file, getUrl, visible }) {
+function PreviewSlide({ file, getUrl, visible, viewMode }) {
   const [textContent, setTextContent] = useState('')
+  const [rawContent, setRawContent] = useState('')
   const [markdownHtml, setMarkdownHtml] = useState('')
   const [xlsxHtml, setXlsxHtml] = useState('')
+  const [linkUrl, setLinkUrl] = useState('')
   const [loading, setLoading] = useState(true)
   const [officeError, setOfficeError] = useState('')
   const docxRef = useRef(null)
   const pptxRef = useRef(null)
   const rendered = useRef(false)
+
+  const isRenderable = file && (file.previewType === 'markdown' || (file.previewType === 'text' && ['.html','.htm','.xml'].includes((file.ext || '').toLowerCase())))
 
   useEffect(() => {
     if (!file || rendered.current) return
@@ -28,18 +34,51 @@ function PreviewSlide({ file, getUrl, visible }) {
 
     if (file.previewType === 'text') {
       fetch(url)
-        .then(r => r.text())
-        .then(text => { setTextContent(text.substring(0, 50000)); setLoading(false) })
+        .then(r => r.arrayBuffer())
+        .then(buf => {
+          let text
+          try {
+            const decoded = new TextDecoder('utf-8', { fatal: true }).decode(buf)
+            text = decoded
+          } catch {
+            text = new TextDecoder('windows-1250').decode(buf)
+          }
+          const trimmed = text.substring(0, 50000)
+          setTextContent(trimmed)
+          setRawContent(trimmed)
+          setLoading(false)
+        })
         .catch(() => { setTextContent('Nie udało się załadować pliku.'); setLoading(false) })
     } else if (file.previewType === 'markdown') {
       fetch(url)
         .then(r => r.text())
         .then(async (text) => {
+          setRawContent(text.substring(0, 50000))
           const { marked } = await import('marked')
           setMarkdownHtml(marked(text))
           setLoading(false)
         })
         .catch(() => { setMarkdownHtml('<p>Nie udało się załadować pliku.</p>'); setLoading(false) })
+    } else if (file.previewType === 'link') {
+      fetch(url)
+        .then(r => r.text())
+        .then(text => {
+          // Parse .url (INI format) or .webloc (XML plist)
+          let parsed = ''
+          const urlMatch = text.match(/URL=(.+)/i)
+          if (urlMatch) {
+            parsed = urlMatch[1].trim()
+          } else {
+            const hrefMatch = text.match(/<string>(https?:\/\/[^<]+)<\/string>/i)
+            if (hrefMatch) parsed = hrefMatch[1].trim()
+          }
+          if (parsed) {
+            setLinkUrl(parsed)
+            window.open(parsed, '_blank', 'noopener')
+          }
+          setLoading(false)
+        })
+        .catch(() => { setLoading(false) })
     } else if (file.previewType === 'office') {
       const ext = (file.ext || '.' + file.name.split('.').pop()).toLowerCase()
       if (ext === '.docx') {
@@ -131,7 +170,7 @@ function PreviewSlide({ file, getUrl, visible }) {
   const url = getUrl(file)
 
   return (
-    <Box sx={{ display: visible ? 'flex' : 'none', width: '100%', minHeight: 400, alignItems: 'center', justifyContent: 'center' }}>
+    <Box sx={{ display: visible ? 'flex' : 'none', width: '100%', minHeight: 400, alignItems: 'center', justifyContent: 'center', flexDirection: 'column' }}>
       {loading && visible && <LinearProgress sx={{ position: 'absolute', top: 0, left: 0, right: 0 }} />}
 
       {file.previewType === 'pdf' && (
@@ -143,30 +182,65 @@ function PreviewSlide({ file, getUrl, visible }) {
       )}
 
       {file.previewType === 'text' && (
-        <Box component="pre" sx={{
-          width: '100%', maxHeight: '70vh', overflow: 'auto',
-          bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2,
-          fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
-        }}>
-          {loading ? 'Ładowanie...' : textContent}
-        </Box>
+        isRenderable && viewMode === 'render' ? (
+          <Box sx={{ width: '100%', maxHeight: '70vh', overflow: 'auto', p: 2 }}
+            dangerouslySetInnerHTML={{ __html: loading ? '<p>Ładowanie...</p>' : textContent }} />
+        ) : (
+          <Box component="pre" sx={{
+            width: '100%', maxHeight: '70vh', overflow: 'auto',
+            bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2,
+            fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
+          }}>
+            {loading ? 'Ładowanie...' : textContent}
+          </Box>
+        )
       )}
 
       {file.previewType === 'markdown' && (
-        <Box sx={{
-          width: '100%', maxHeight: '70vh', overflow: 'auto', p: 3,
-          '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 2, mb: 1 },
-          '& p': { mb: 1.5, lineHeight: 1.7 },
-          '& code': { bgcolor: 'action.hover', px: 0.5, py: 0.25, borderRadius: 0.5, fontSize: '0.9em' },
-          '& pre': { bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2, overflow: 'auto', fontSize: 13 },
-          '& pre code': { bgcolor: 'transparent', p: 0 },
-          '& blockquote': { borderLeft: '4px solid', borderColor: 'primary.main', pl: 2, ml: 0, color: 'text.secondary' },
-          '& table': { borderCollapse: 'collapse', width: '100%', mb: 2 },
-          '& td, & th': { border: '1px solid', borderColor: 'divider', p: 1 },
-          '& th': { bgcolor: 'action.hover', fontWeight: 'bold' },
-          '& img': { maxWidth: '100%' }, '& a': { color: 'primary.main' },
-          '& ul, & ol': { pl: 3 }, '& li': { mb: 0.5 },
-        }} dangerouslySetInnerHTML={{ __html: loading ? '<p>Ładowanie...</p>' : markdownHtml }} />
+        viewMode === 'render' ? (
+          <Box sx={{
+            width: '100%', maxHeight: '70vh', overflow: 'auto', p: 3,
+            '& h1, & h2, & h3, & h4, & h5, & h6': { mt: 2, mb: 1 },
+            '& p': { mb: 1.5, lineHeight: 1.7 },
+            '& code': { bgcolor: 'action.hover', px: 0.5, py: 0.25, borderRadius: 0.5, fontSize: '0.9em' },
+            '& pre': { bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2, overflow: 'auto', fontSize: 13 },
+            '& pre code': { bgcolor: 'transparent', p: 0 },
+            '& blockquote': { borderLeft: '4px solid', borderColor: 'primary.main', pl: 2, ml: 0, color: 'text.secondary' },
+            '& table': { borderCollapse: 'collapse', width: '100%', mb: 2 },
+            '& td, & th': { border: '1px solid', borderColor: 'divider', p: 1 },
+            '& th': { bgcolor: 'action.hover', fontWeight: 'bold' },
+            '& img': { maxWidth: '100%' }, '& a': { color: 'primary.main' },
+            '& ul, & ol': { pl: 3 }, '& li': { mb: 0.5 },
+          }} dangerouslySetInnerHTML={{ __html: loading ? '<p>Ładowanie...</p>' : markdownHtml }} />
+        ) : (
+          <Box component="pre" sx={{
+            width: '100%', maxHeight: '70vh', overflow: 'auto',
+            bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2,
+            fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
+          }}>
+            {loading ? 'Ładowanie...' : rawContent}
+          </Box>
+        )
+      )}
+
+      {file.previewType === 'link' && (
+        <Box sx={{ width: '100%', display: 'flex', flexDirection: 'column', alignItems: 'center', justifyContent: 'center', py: 6, gap: 2 }}>
+          {linkUrl ? (
+            <>
+              <Typography variant="body1" color="text.secondary">Przekierowano do:</Typography>
+              <Button variant="contained" href={linkUrl} target="_blank" rel="noopener noreferrer">
+                {linkUrl.length > 80 ? linkUrl.substring(0, 80) + '...' : linkUrl}
+              </Button>
+              <Typography variant="caption" color="text.secondary">
+                Jeśli strona się nie otworzyła, kliknij przycisk powyżej.
+              </Typography>
+            </>
+          ) : (
+            <Typography color="text.secondary">
+              {loading ? 'Ładowanie...' : 'Nie udało się odczytać linku z pliku.'}
+            </Typography>
+          )}
+        </Box>
       )}
 
       {file.previewType === 'office' && (
@@ -197,6 +271,9 @@ function PreviewSlide({ file, getUrl, visible }) {
 
 export default function PreviewModal({ open, onClose, files, index, onIndexChange, isPending = false }) {
   const file = files[index]
+  const [viewMode, setViewMode] = useState('render')
+
+  const isRenderable = file && (file.previewType === 'markdown' || (file.previewType === 'text' && ['.html','.htm','.xml'].includes((file.ext || '').toLowerCase())))
 
   const getUrl = useCallback((f) => {
     if (isPending) return getAdminViewUrl(f.rel)
@@ -237,6 +314,17 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
             <ArrowForward />
           </IconButton>
         )}
+        {isRenderable && (
+          <ToggleButtonGroup
+            value={viewMode}
+            exclusive
+            onChange={(_, v) => v && setViewMode(v)}
+            size="small"
+          >
+            <ToggleButton value="render"><Article fontSize="small" /></ToggleButton>
+            <ToggleButton value="plain"><Code fontSize="small" /></ToggleButton>
+          </ToggleButtonGroup>
+        )}
         <Typography variant="subtitle1" sx={{ flex: 1, textAlign: 'center', wordBreak: 'break-all' }}>
           {file.name}
         </Typography>
@@ -256,6 +344,7 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
             file={files[i]}
             getUrl={getUrl}
             visible={i === index}
+            viewMode={viewMode}
           />
         ))}
       </DialogContent>
