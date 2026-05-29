@@ -22,10 +22,15 @@ import { getDownloadUrl } from '../api'
  * - onNavigatePath: (path) => void (optional, for search results path click)
  * - isAdmin: boolean
  * - showPath: boolean (show folder path in secondary, for search results)
+ * - extraActions: ReactNode (extra action buttons)
+ * - hideDownload: boolean (hide download button)
+ * - hideCheckbox: boolean (hide checkbox)
  */
 export default function FileEntry({
-  file, selected = false, onToggleSelect, onPreview, onRename, onDelete, onNavigatePath, isAdmin = false, showPath = false,
+  file, selected = false, onToggleSelect, onPreview, onRename, onDelete, onNavigatePath,
+  isAdmin = false, showPath = false, extraActions, hideDownload = false, hideCheckbox = false,
 }) {
+  const dlUrl = file.downloadUrl || getDownloadUrl(file.rel)
   return (
     <ListItem
       sx={{
@@ -35,12 +40,14 @@ export default function FileEntry({
         '&:hover': { bgcolor: 'action.hover' },
       }}
     >
-      <Checkbox
-        size="small"
-        checked={selected}
-        onChange={() => onToggleSelect?.()}
-        sx={{ mr: 1 }}
-      />
+      {!hideCheckbox && (
+        <Checkbox
+          size="small"
+          checked={selected}
+          onChange={() => onToggleSelect?.()}
+          sx={{ mr: 1 }}
+        />
+      )}
       <ListItemIcon sx={{ minWidth: 40 }}>
         <FileIcon file={file} />
       </ListItemIcon>
@@ -56,7 +63,7 @@ export default function FileEntry({
               {file.name}
             </Link>
           ) : (
-            <Link href={getDownloadUrl(file.rel)} underline="hover" sx={{ fontWeight: 500 }}>
+            <Link href={dlUrl} underline="hover" sx={{ fontWeight: 500 }}>
               {file.name}
             </Link>
           )
@@ -96,11 +103,13 @@ export default function FileEntry({
           </IconButton>
         </Tooltip>
       )}
-      <Tooltip title="Pobierz">
-        <IconButton size="small" href={getDownloadUrl(file.rel)}>
-          <Download fontSize="small" />
-        </IconButton>
-      </Tooltip>
+      {!hideDownload && (
+        <Tooltip title="Pobierz">
+          <IconButton size="small" href={dlUrl}>
+            <Download fontSize="small" />
+          </IconButton>
+        </Tooltip>
+      )}
       {isAdmin && onRename && (
         <Tooltip title="Zmień nazwę">
           <IconButton size="small" onClick={() => onRename(file)}>
@@ -115,6 +124,7 @@ export default function FileEntry({
           </IconButton>
         </Tooltip>
       )}
+      {extraActions}
     </ListItem>
   )
 }

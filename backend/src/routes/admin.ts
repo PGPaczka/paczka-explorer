@@ -139,7 +139,7 @@ router.post('/api/admin/rename', (req, res) => {
 
 // ============ VIEW PENDING FILE ============
 
-router.get('/admin/view/:fileId', (req, res) => {
+router.get('/admin/view/:fileId/:filename?', (req, res) => {
   if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
   const pending = loadPending();
   for (const group of pending) {

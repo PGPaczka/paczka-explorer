@@ -220,6 +220,7 @@ export function getDownloadFolderUrl(rel) {
   return `${API_BASE}/download-folder/${encodePath(rel)}`
 }
 
-export function getAdminViewUrl(fileId) {
+export function getAdminViewUrl(fileId, filename) {
+  if (filename) return `${API_BASE}/admin/view/${fileId}/${encodeURIComponent(filename)}`
   return `${API_BASE}/admin/view/${fileId}`
 }

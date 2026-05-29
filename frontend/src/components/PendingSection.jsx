@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react'
 import {
-  Paper, Typography, Button, Stack, Chip, List, ListItem, ListItemText,
-  IconButton, Collapse, Box, Alert,
+  Paper, Typography, Button, Stack, Chip, List,
+  IconButton, Collapse, Box,
 } from '@mui/material'
 import CheckCircle from '@mui/icons-material/CheckCircle'
 import Cancel from '@mui/icons-material/Cancel'
@@ -10,12 +10,67 @@ import ExpandLess from '@mui/icons-material/ExpandLess'
 import Folder from '@mui/icons-material/Folder'
 import HourglassEmpty from '@mui/icons-material/HourglassEmpty'
 import UploadFile from '@mui/icons-material/UploadFile'
-import { fetchPending, adminApprove, adminReject, adminApproveFile, adminRejectFile } from '../api'
+import FileEntry from './FileEntry'
+import PreviewModal from './PreviewModal'
+import { fetchPending, getAdminViewUrl, adminApprove, adminReject, adminApproveFile, adminRejectFile } from '../api'
+
+function formatSize(b) {
+  if (b < 1024) return `${b} B`
+  if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
+  return `${(b / (1024 * 1024)).toFixed(1)} MB`
+}
+
+const PREVIEWABLE_EXTS = new Set([
+  '.txt','.py','.java','.c','.cpp','.cs','.js','.html','.css',
+  '.h','.hpp','.asm','.s','.m','.sql','.xml','.json','.yml','.yaml','.sh','.bat',
+  '.cfg','.ini','.log','.csv','.adb','.ads','.hs','.st','.pl','.pro','.ts','.rb','.php','.r','.kt','.swift','.go','.rs',
+  '.tex','.typ','.bib','.mmd','.env','.in','.dat','.data','.names','.org','.ws',
+  '.aspx','.csproj','.sln','.config','.resx','.filters','.xaml','.xsd','.xslt','.kml','.user','.build',
+  '.ipynb','.out',
+  '.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg',
+  '.pdf',
+  '.md',
+  '.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods','.pps',
+  '.mp4','.webm','.mov',
+  '.wav','.mp3','.ogg','.flac',
+  '.url','.webloc',
+])
+
+function getPreviewType(ext) {
+  ext = (ext || '').toLowerCase()
+  if (['.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg'].includes(ext)) return 'image'
+  if (ext === '.pdf') return 'pdf'
+  if (ext === '.md') return 'markdown'
+  if (['.url','.webloc'].includes(ext)) return 'link'
+  if (['.mp4','.webm','.mov'].includes(ext)) return 'video'
+  if (['.wav','.mp3','.ogg','.flac'].includes(ext)) return 'audio'
+  if (['.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods','.pps'].includes(ext)) return 'office'
+  if (PREVIEWABLE_EXTS.has(ext)) return 'text'
+  return null
+}
+
+function pendingFileToFileEntry(file) {
+  const ext = '.' + (file.original_name || '').split('.').pop().toLowerCase()
+  const previewType = getPreviewType(ext)
+  return {
+    name: file.original_name,
+    rel: file.file_id,
+    ext,
+    size: file.size,
+    sizeFormatted: formatSize(file.size),
+    previewable: !!previewType,
+    previewType,
+    downloadUrl: getAdminViewUrl(file.file_id, file.original_name),
+  }
+}
 
 export default function PendingSection({ path, onRefresh }) {
   const [pending, setPending] = useState([])
   const [visible, setVisible] = useState(false)
   const [loading, setLoading] = useState(false)
+  const [previewOpen, setPreviewOpen] = useState(false)
+  const [previewFiles, setPreviewFiles] = useState([])
+  const [previewIndex, setPreviewIndex] = useState(0)
 
   const loadPending = async () => {
     setLoading(true)
@@ -55,10 +110,14 @@ export default function PendingSection({ path, onRefresh }) {
     onRefresh()
   }
 
-  const formatSize = (b) => {
-    if (b < 1024) return `${b} B`
-    if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
-    return `${(b / (1024 * 1024)).toFixed(1)} MB`
+  const handlePreview = (file, group) => {
+    const entries = (group.files || []).map(pendingFileToFileEntry).filter(f => f.previewable)
+    const idx = entries.findIndex(f => f.rel === file.rel)
+    if (idx >= 0) {
+      setPreviewFiles(entries)
+      setPreviewIndex(idx)
+      setPreviewOpen(true)
+    }
   }
 
   if (pending.length === 0) return null
@@ -117,21 +176,24 @@ export default function PendingSection({ path, onRefresh }) {
                     </Box>
                   </Stack>
                   <List dense disablePadding>
-                    {group.files?.map((file) => (
-                      <ListItem key={file.file_id} sx={{ py: 0.5 }}>
-                        <ListItemText
-                          primary={file.original_name}
-                          secondary={formatSize(file.size)}
-                          primaryTypographyProps={{ variant: 'body2' }}
+                    {group.files?.map((file) => {
+                      const entry = pendingFileToFileEntry(file)
+                      return (
+                        <FileEntry
+                          key={file.file_id}
+                          file={entry}
+                          hideCheckbox
+                          onPreview={(f) => handlePreview(f, group)}
+                          onDelete={() => handleRejectFile(group.group_id, file.file_id)}
+                          isAdmin
+                          extraActions={
+                            <IconButton size="small" color="success" onClick={() => handleApproveFile(group.group_id, file.file_id)}>
+                              <CheckCircle fontSize="small" />
+                            </IconButton>
+                          }
                         />
-                        <IconButton size="small" color="success" onClick={() => handleApproveFile(group.group_id, file.file_id)}>
-                          <CheckCircle fontSize="small" />
-                        </IconButton>
-                        <IconButton size="small" color="error" onClick={() => handleRejectFile(group.group_id, file.file_id)}>
-                          <Cancel fontSize="small" />
-                        </IconButton>
-                      </ListItem>
-                    ))}
+                      )
+                    })}
                   </List>
                 </>
               )}
@@ -139,6 +201,14 @@ export default function PendingSection({ path, onRefresh }) {
           ))}
         </Box>
       </Collapse>
+      <PreviewModal
+        open={previewOpen}
+        onClose={() => setPreviewOpen(false)}
+        files={previewFiles}
+        index={previewIndex}
+        onIndexChange={setPreviewIndex}
+        isPending
+      />
     </Paper>
   )
 }
