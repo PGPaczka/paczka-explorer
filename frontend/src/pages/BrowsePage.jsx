@@ -37,6 +37,7 @@ export default function BrowsePage() {
 
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(new Set())
@@ -69,20 +70,25 @@ export default function BrowsePage() {
 
   const isZipPath = currentPath.match(/\.zip(\/|$)/i)
 
-  const loadData = async () => {
-    setLoading(true)
+  const loadData = async (isRefresh = false) => {
+    if (isRefresh) {
+      setRefreshing(true)
+    } else {
+      setLoading(true)
+    }
     try {
       const result = isZipPath ? await fetchBrowseZip(currentPath) : await fetchBrowse(currentPath)
       setData(result)
-      setSelected(new Set())
+      if (!isRefresh) setSelected(new Set())
     } catch (err) {
       setSnackbar({ open: true, message: 'Błąd ładowania: ' + err.message, severity: 'error' })
     } finally {
       setLoading(false)
+      setRefreshing(false)
     }
   }
 
-  useEffect(() => { loadData() }, [currentPath])
+  useEffect(() => { loadData(false) }, [currentPath])
 
   // Global search with debounce + AbortController
   useEffect(() => {
@@ -231,7 +237,7 @@ export default function BrowsePage() {
     try {
       await adminDeleteFile(file.rel)
       showSnackbar('Plik usunięty')
-      loadData()
+      loadData(true)
     } catch (err) {
       showSnackbar('Błąd usuwania: ' + err.message, 'error')
     }
@@ -242,7 +248,7 @@ export default function BrowsePage() {
     try {
       await adminDeleteFolder(dir.rel)
       showSnackbar('Folder usunięty')
-      loadData()
+      loadData(true)
     } catch (err) {
       showSnackbar('Błąd usuwania: ' + err.message, 'error')
     }
@@ -254,7 +260,7 @@ export default function BrowsePage() {
     try {
       await adminRename(item.rel, newName)
       showSnackbar('Nazwa zmieniona')
-      loadData()
+      loadData(true)
     } catch (err) {
       showSnackbar('Błąd zmiany nazwy: ' + err.message, 'error')
     }
@@ -264,7 +270,7 @@ export default function BrowsePage() {
     setSnackbar({ open: true, message, severity })
   }
 
-  if (loading) {
+  if (loading && !data) {
     return (
       <Container maxWidth="lg" sx={{ mt: 4 }}>
         <LinearProgress />
@@ -276,6 +282,8 @@ export default function BrowsePage() {
 
   return (
     <Container maxWidth="lg" sx={{ py: 3 }}>
+      {/* Refreshing indicator (non-blocking) */}
+      {refreshing && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300 }} />}
       {/* Breadcrumb */}
       <Breadcrumbs sx={{ mb: 2 }}>
         {data.breadcrumb.map((bc, i) => (
@@ -421,7 +429,7 @@ export default function BrowsePage() {
 
       {/* Pending section (admin only) */}
       {data.isAdmin && (
-        <PendingSection path={currentPath} onRefresh={loadData} />
+        <PendingSection path={currentPath} onRefresh={() => loadData(true)} />
       )}
 
       {/* File list */}
@@ -549,13 +557,13 @@ export default function BrowsePage() {
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         targetPath={currentPath}
-        onSuccess={() => { loadData(); showSnackbar('Pliki wysłane do zatwierdzenia') }}
+        onSuccess={() => { loadData(true); showSnackbar('Pliki wysłane do zatwierdzenia') }}
       />
       <CreateFolderDialog
         open={folderOpen}
         onClose={() => setFolderOpen(false)}
         targetPath={currentPath}
-        onSuccess={() => { loadData(); showSnackbar('Folder wysłany do zatwierdzenia') }}
+        onSuccess={() => { loadData(true); showSnackbar('Folder wysłany do zatwierdzenia') }}
       />
       <PreviewModal
         open={previewOpen}
