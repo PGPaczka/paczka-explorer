@@ -46,6 +46,13 @@ router.get('/api/browse/:path(*)?', (req, res) => {
         const ext = path.extname(entry.name).toLowerCase();
         const stat = fs.statSync(full);
         const previewType = getPreviewType(ext);
+
+        // Treat ZIP files as navigable directories
+        if (['.zip','.rar','.7z'].includes(ext) && ext === '.zip') {
+          dirs.push({ name: entry.name, rel, fileCount: 0, isZip: true });
+          continue;
+        }
+
         const fileEntry: any = {
           name: entry.name, rel, ext, size: stat.size,
           sizeFormatted: formatSize(stat.size), icon: getIcon(ext),

@@ -10,6 +10,7 @@ import browseRoutes from './routes/browse';
 import searchRoutes from './routes/searchRoute';
 import filesRoutes from './routes/files';
 import zipRoutes from './routes/zip';
+import zipBrowseRoutes from './routes/zipBrowse';
 import adminRoutes from './routes/admin';
 
 // Ensure pending dir exists
@@ -34,6 +35,7 @@ app.use(browseRoutes);
 app.use(searchRoutes);
 app.use(filesRoutes);
 app.use(zipRoutes);
+app.use(zipBrowseRoutes);
 app.use(adminRoutes);
 
 // ============ SERVE REACT FRONTEND ============

@@ -224,3 +224,13 @@ export function getAdminViewUrl(fileId, filename) {
   if (filename) return `${API_BASE}/admin/view/${fileId}/${encodeURIComponent(filename)}`
   return `${API_BASE}/admin/view/${fileId}`
 }
+
+export async function fetchBrowseZip(zipPath) {
+  const res = await fetch(`${API_BASE}/api/browse-zip/${zipPath}`, fetchOpts)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
+export function getViewZipUrl(rel) {
+  return `${API_BASE}/view-zip/${encodePath(rel)}`
+}

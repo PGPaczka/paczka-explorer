@@ -18,7 +18,7 @@ import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
-import { fetchBrowse, searchFiles, getDownloadUrl, getViewUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
+import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, getViewZipUrl, downloadSelected, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
@@ -53,10 +53,12 @@ export default function BrowsePage() {
   const [globalResults, setGlobalResults] = useState(null)
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false)
 
+  const isZipPath = currentPath.match(/\.zip(\/|$)/i)
+
   const loadData = async () => {
     setLoading(true)
     try {
-      const result = await fetchBrowse(currentPath)
+      const result = isZipPath ? await fetchBrowseZip(currentPath) : await fetchBrowse(currentPath)
       setData(result)
       setSelected(new Set())
     } catch (err) {
@@ -413,12 +415,12 @@ export default function BrowsePage() {
               </ListItemIcon>
               <ListItemText
                 primary={dir.name}
-                secondary={`${dir.fileCount} plików`}
+                secondary={dir.isZip || dir.isInZip ? (dir.isZip ? 'archiwum ZIP' : '') : `${dir.fileCount} plików`}
               />
               <Tooltip title="Pobierz ZIP">
                 <IconButton
                   size="small"
-                  onClick={(e) => { e.stopPropagation(); handleDownloadFolder(dir.rel) }}
+                  onClick={(e) => { e.stopPropagation(); dir.isZip ? window.location.href = getDownloadUrl(dir.rel) : handleDownloadFolder(dir.rel) }}
                 >
                   <Download fontSize="small" />
                 </IconButton>

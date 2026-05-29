@@ -9,7 +9,7 @@ import ArrowForward from '@mui/icons-material/ArrowForward'
 import Download from '@mui/icons-material/Download'
 import Code from '@mui/icons-material/Code'
 import Article from '@mui/icons-material/Article'
-import { getViewUrl, getDownloadUrl, getAdminViewUrl } from '../api'
+import { getViewUrl, getDownloadUrl, getAdminViewUrl, getViewZipUrl } from '../api'
 import CodePreview from './CodePreview'
 
 // Individual slide renderer - handles one file preview
@@ -278,6 +278,7 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
 
   const getUrl = useCallback((f) => {
     if (isPending) return getAdminViewUrl(f.rel)
+    if (f.isInZip) return getViewZipUrl(f.rel)
     return getViewUrl(f.rel)
   }, [isPending])
 
