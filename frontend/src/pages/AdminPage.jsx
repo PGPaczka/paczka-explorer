@@ -9,9 +9,12 @@ import CheckCircle from '@mui/icons-material/CheckCircle'
 import Cancel from '@mui/icons-material/Cancel'
 import Logout from '@mui/icons-material/Logout'
 import ExpandMore from '@mui/icons-material/ExpandMore'
-import Folder from '@mui/icons-material/Folder'
+import FolderIcon from '@mui/icons-material/Folder'
 import UploadFile from '@mui/icons-material/UploadFile'
 import Visibility from '@mui/icons-material/Visibility'
+import Assignment from '@mui/icons-material/Assignment'
+import Language from '@mui/icons-material/Language'
+import CalendarToday from '@mui/icons-material/CalendarToday'
 import { fetchPendingAll, fetchAuthStatus, logout, adminApprove, adminReject, adminApproveFile, adminRejectFile } from '../api'
 import PreviewModal from '../components/PreviewModal'
 
@@ -98,7 +101,7 @@ export default function AdminPage() {
   return (
     <Container maxWidth="md" sx={{ py: 3 }}>
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-        <Typography variant="h5">📋 Do zatwierdzenia ({pending.length} grup)</Typography>
+        <Typography variant="h5"><Assignment sx={{ fontSize: 22, verticalAlign: 'text-bottom', mr: 0.5 }} />Do zatwierdzenia ({pending.length} grup)</Typography>
         <Stack direction="row" gap={1}>
           <Button variant="outlined" onClick={() => navigate('/browse')}>
             Przeglądaj pliki
@@ -127,7 +130,7 @@ export default function AdminPage() {
                   </Typography>
                 </Stack>
                 <Typography variant="body2" color="text.secondary">
-                  📁 W: {group.target_path || '/'} | 🌐 {group.ip} | 📅 {group.uploaded_at?.slice(0, 16)}
+                  <FolderIcon sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> W: {group.target_path || '/'} | <Language sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {group.ip} | <CalendarToday sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {group.uploaded_at?.slice(0, 16)}
                 </Typography>
                 <Stack direction="row" gap={1} sx={{ mt: 2 }}>
                   <Button size="small" variant="contained" color="success" startIcon={<CheckCircle />} onClick={() => handleApprove(group.group_id)}>

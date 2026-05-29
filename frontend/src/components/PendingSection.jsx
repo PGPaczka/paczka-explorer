@@ -8,6 +8,7 @@ import Cancel from '@mui/icons-material/Cancel'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import ExpandLess from '@mui/icons-material/ExpandLess'
 import Folder from '@mui/icons-material/Folder'
+import HourglassEmpty from '@mui/icons-material/HourglassEmpty'
 import UploadFile from '@mui/icons-material/UploadFile'
 import { fetchPending, adminApprove, adminReject, adminApproveFile, adminRejectFile } from '../api'
 
@@ -68,7 +69,7 @@ export default function PendingSection({ path, onRefresh }) {
         sx={{ p: 1.5, cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 1 }}
         onClick={() => setVisible(!visible)}
       >
-        <Chip label={`⏳ Pending: ${pending.length}`} color="warning" size="small" />
+        <Chip icon={<HourglassEmpty />} label={`Pending: ${pending.length}`} color="warning" size="small" />
         <Typography variant="body2" color="text.secondary" sx={{ flex: 1 }}>
           Pliki oczekujące na zatwierdzenie w tym folderze
         </Typography>

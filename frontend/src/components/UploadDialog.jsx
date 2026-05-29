@@ -75,7 +75,7 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
 
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="sm" fullWidth>
-      <DialogTitle>📤 Wrzuć pliki</DialogTitle>
+      <DialogTitle>Wrzuć pliki</DialogTitle>
       <DialogContent>
         {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
 

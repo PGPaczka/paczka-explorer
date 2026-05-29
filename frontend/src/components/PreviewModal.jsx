@@ -134,7 +134,7 @@ function PreviewSlide({ file, getUrl, visible, viewMode }) {
         const sheet = workbook.Sheets[sheetName]
         const sheetHtml = XLSX.utils.sheet_to_html(sheet, { editable: false })
         html += `<div style="margin-bottom: 24px;">
-          ${workbook.SheetNames.length > 1 ? `<h3 style="margin: 8px 0; color: #333;">📋 ${sheetName}</h3>` : ''}
+          ${workbook.SheetNames.length > 1 ? `<h3 style="margin: 8px 0; color: #333;">${sheetName}</h3>` : ''}
           <div style="overflow-x: auto;">${sheetHtml}</div>
         </div>`
       }

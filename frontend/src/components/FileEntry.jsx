@@ -5,6 +5,7 @@ import Download from '@mui/icons-material/Download'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
 import Visibility from '@mui/icons-material/Visibility'
+import FolderOpen from '@mui/icons-material/FolderOpen'
 import FileIcon from './FileIcon'
 import { getDownloadUrl } from '../api'
 
@@ -72,7 +73,7 @@ export default function FileEntry({
                   onClick={() => onNavigatePath?.(file.path || '')}
                   sx={{ verticalAlign: 'baseline' }}
                 >
-                  📂 {file.path || 'Główna'}
+                  <FolderOpen sx={{ fontSize: 14, verticalAlign: 'text-bottom', mr: 0.3 }} />{file.path || 'Główna'}
                 </Link>
                 {' — '}
               </>

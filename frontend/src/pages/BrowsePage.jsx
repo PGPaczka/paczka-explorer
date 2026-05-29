@@ -7,6 +7,7 @@ import {
   Fab, Divider, Stack, LinearProgress, ToggleButton, ToggleButtonGroup,
 } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
+import InsertDriveFile from '@mui/icons-material/InsertDriveFile'
 import Download from '@mui/icons-material/Download'
 import Search from '@mui/icons-material/Search'
 import TravelExplore from '@mui/icons-material/TravelExplore'
@@ -315,7 +316,7 @@ export default function BrowsePage() {
             <>
               <Box sx={{ p: 1.5, bgcolor: 'action.hover', flexShrink: 0 }}>
                 <Typography variant="body2" color="text.secondary">
-                  🔍 Znaleziono <strong>{globalResults.total}</strong> wyników dla „{globalResults.query}"
+                  <Search sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />Znaleziono <strong>{globalResults.total}</strong> wyników dla „{globalResults.query}"
                 </Typography>
               </Box>
               <List disablePadding sx={{ overflow: 'auto', flexGrow: 1 }}>
@@ -357,7 +358,7 @@ export default function BrowsePage() {
       {/* Stats & Toolbar */}
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }} flexWrap="wrap" gap={1}>
         <Typography variant="body2" color="text.secondary">
-          📁 {data.dirs.length} folderów, 📄 {data.files.length} plików
+          <FolderIcon sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.dirs.length} folderów, <InsertDriveFile sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.files.length} plików
         </Typography>
         <Stack direction="row" gap={1} flexWrap="wrap">
           <Button size="small" startIcon={<SelectAll />} onClick={handleSelectAll}>
@@ -474,7 +475,7 @@ export default function BrowsePage() {
       <Paper variant="outlined" sx={{ p: 3 }}>
         <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} divider={<Divider orientation="vertical" flexItem />}>
           <Box flex={1}>
-            <Typography variant="h6" gutterBottom>📤 Wrzuć pliki</Typography>
+            <Typography variant="h6" gutterBottom><CloudUpload sx={{ fontSize: 20, verticalAlign: 'text-bottom', mr: 0.5 }} />Wrzuć pliki</Typography>
             <Button variant="contained" startIcon={<CloudUpload />} onClick={() => setUploadOpen(true)}>
               Wybierz pliki
             </Button>
@@ -491,7 +492,7 @@ export default function BrowsePage() {
             )}
           </Box>
           <Box>
-            <Typography variant="h6" gutterBottom>📁 Nowy folder</Typography>
+            <Typography variant="h6" gutterBottom><CreateNewFolder sx={{ fontSize: 20, verticalAlign: 'text-bottom', mr: 0.5 }} />Nowy folder</Typography>
             <Button variant="contained" color="secondary" startIcon={<CreateNewFolder />} onClick={() => setFolderOpen(true)}>
               Utwórz folder
             </Button>

@@ -35,7 +35,7 @@ export default function CreateFolderDialog({ open, onClose, targetPath, onSucces
   return (
     <Dialog open={open} onClose={handleClose} maxWidth="xs" fullWidth>
       <form onSubmit={handleSubmit}>
-        <DialogTitle>📁 Nowy folder</DialogTitle>
+        <DialogTitle>Nowy folder</DialogTitle>
         <DialogContent>
           {error && <Alert severity="error" sx={{ mb: 2 }}>{error}</Alert>}
           <TextField
