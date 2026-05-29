@@ -10,6 +10,7 @@ import Download from '@mui/icons-material/Download'
 import Code from '@mui/icons-material/Code'
 import Article from '@mui/icons-material/Article'
 import { getViewUrl, getDownloadUrl, getAdminViewUrl } from '../api'
+import CodePreview from './CodePreview'
 
 // Individual slide renderer - handles one file preview
 function PreviewSlide({ file, getUrl, visible, viewMode }) {
@@ -185,14 +186,10 @@ function PreviewSlide({ file, getUrl, visible, viewMode }) {
         isRenderable && viewMode === 'render' ? (
           <Box sx={{ width: '100%', maxHeight: '70vh', overflow: 'auto', p: 2 }}
             dangerouslySetInnerHTML={{ __html: loading ? '<p>Ładowanie...</p>' : textContent }} />
+        ) : !loading ? (
+          <CodePreview content={textContent} ext={file.ext} />
         ) : (
-          <Box component="pre" sx={{
-            width: '100%', maxHeight: '70vh', overflow: 'auto',
-            bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2,
-            fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
-          }}>
-            {loading ? 'Ładowanie...' : textContent}
-          </Box>
+          <Box sx={{ p: 2, color: 'text.secondary' }}>Ładowanie...</Box>
         )
       )}
 
@@ -212,14 +209,10 @@ function PreviewSlide({ file, getUrl, visible, viewMode }) {
             '& img': { maxWidth: '100%' }, '& a': { color: 'primary.main' },
             '& ul, & ol': { pl: 3 }, '& li': { mb: 0.5 },
           }} dangerouslySetInnerHTML={{ __html: loading ? '<p>Ładowanie...</p>' : markdownHtml }} />
+        ) : !loading ? (
+          <CodePreview content={rawContent} ext=".md" />
         ) : (
-          <Box component="pre" sx={{
-            width: '100%', maxHeight: '70vh', overflow: 'auto',
-            bgcolor: '#1e1e1e', color: '#d4d4d4', p: 2, borderRadius: 2,
-            fontSize: 13, lineHeight: 1.5, whiteSpace: 'pre-wrap', wordWrap: 'break-word',
-          }}>
-            {loading ? 'Ładowanie...' : rawContent}
-          </Box>
+          <Box sx={{ p: 2, color: 'text.secondary' }}>Ładowanie...</Box>
         )
       )}
 
