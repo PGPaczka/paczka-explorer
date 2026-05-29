@@ -8,6 +8,8 @@ import Archive from '@mui/icons-material/Archive'
 import TextSnippet from '@mui/icons-material/TextSnippet'
 import DataObject from '@mui/icons-material/DataObject'
 import Link from '@mui/icons-material/Link'
+import VideoFile from '@mui/icons-material/VideoFile'
+import AudioFile from '@mui/icons-material/AudioFile'
 import YouTube from '@mui/icons-material/YouTube'
 import GitHub from '@mui/icons-material/GitHub'
 import Forum from '@mui/icons-material/Forum'
@@ -74,6 +76,15 @@ const EXT_ICON_MAP = {
   // Links
   '.url': { icon: Link, color: '#1565c0' },
   '.webloc': { icon: Link, color: '#1565c0' },
+  // Video
+  '.mp4': { icon: VideoFile, color: '#7b1fa2' },
+  '.webm': { icon: VideoFile, color: '#7b1fa2' },
+  '.mov': { icon: VideoFile, color: '#7b1fa2' },
+  // Audio
+  '.wav': { icon: AudioFile, color: '#00838f' },
+  '.mp3': { icon: AudioFile, color: '#00838f' },
+  '.ogg': { icon: AudioFile, color: '#00838f' },
+  '.flac': { icon: AudioFile, color: '#00838f' },
 }
 
 const SERVICE_ICON_MAP = {

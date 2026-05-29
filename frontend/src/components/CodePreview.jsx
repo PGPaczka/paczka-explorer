@@ -29,18 +29,22 @@ const EXT_TO_LANG = {
   '.ts': 'typescript', '.tsx': 'jsx',
   '.py': 'python',
   '.java': 'java',
-  '.c': 'c', '.h': 'c', '.cpp': 'cpp', '.hpp': 'cpp', '.cc': 'cpp',
+  '.c': 'c', '.h': 'c', '.hpp': 'cpp', '.cpp': 'cpp', '.cc': 'cpp',
   '.cs': 'java', // close enough
-  '.html': 'html', '.htm': 'html',
+  '.html': 'html', '.htm': 'html', '.aspx': 'html', '.xaml': 'xml',
   '.css': 'css',
-  '.json': 'json',
+  '.json': 'json', '.ipynb': 'json',
   '.xml': 'xml', '.xsd': 'xml', '.xslt': 'xml', '.svg': 'xml',
+  '.csproj': 'xml', '.config': 'xml', '.resx': 'xml', '.filters': 'xml',
+  '.kml': 'xml', '.user': 'xml', '.build': 'xml',
   '.sql': 'sql',
   '.php': 'php',
   '.rs': 'rust',
-  '.md': 'markdown',
-  '.yml': 'json', '.yaml': 'json', // approximate
-  '.sh': 'python', '.bat': 'python', // approximate
+  '.md': 'markdown', '.mmd': 'markdown',
+  '.yml': 'json', '.yaml': 'json',
+  '.sh': 'python', '.bat': 'python',
+  '.s': 'c', '.asm': 'c', // approximate
+  '.tex': 'markdown', '.typ': 'markdown', '.bib': 'markdown', // approximate
 }
 
 export default function CodePreview({ content, ext, maxHeight = '70vh' }) {

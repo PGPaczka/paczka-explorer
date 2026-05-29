@@ -39,17 +39,22 @@ export function getIcon(ext: string): string {
 }
 
 const PREVIEWABLE_TEXT = new Set(['.txt','.py','.java','.c','.cpp','.cs','.js','.html','.css',
-  '.h','.asm','.m','.sql','.xml','.json','.yml','.yaml','.sh','.bat',
-  '.cfg','.ini','.log','.csv','.adb','.ads','.hs','.st','.pl','.pro','.ts','.rb','.php','.r','.kt','.swift','.go','.rs']);
+  '.h','.hpp','.asm','.s','.m','.sql','.xml','.json','.yml','.yaml','.sh','.bat',
+  '.cfg','.ini','.log','.csv','.adb','.ads','.hs','.st','.pl','.pro','.ts','.rb','.php','.r','.kt','.swift','.go','.rs',
+  '.tex','.typ','.bib','.mmd','.env','.in','.dat','.data','.names','.org','.ws',
+  '.aspx','.csproj','.sln','.config','.resx','.filters','.xaml','.xsd','.xslt','.kml','.user','.build',
+  '.ipynb','.out']);
 const PREVIEWABLE_IMAGE = new Set(['.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg']);
 const PREVIEWABLE_PDF = new Set(['.pdf']);
-const PREVIEWABLE_OFFICE = new Set(['.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods']);
+const PREVIEWABLE_OFFICE = new Set(['.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods','.pps']);
 const PREVIEWABLE_MARKDOWN = new Set(['.md']);
 const PREVIEWABLE_LINK = new Set(['.url','.webloc']);
+const PREVIEWABLE_VIDEO = new Set(['.mp4','.webm','.mov']);
+const PREVIEWABLE_AUDIO = new Set(['.wav','.mp3','.ogg','.flac']);
 
 export function isPreviewable(ext: string): boolean {
   ext = ext.toLowerCase();
-  return PREVIEWABLE_TEXT.has(ext) || PREVIEWABLE_IMAGE.has(ext) || PREVIEWABLE_PDF.has(ext) || PREVIEWABLE_OFFICE.has(ext) || PREVIEWABLE_MARKDOWN.has(ext) || PREVIEWABLE_LINK.has(ext);
+  return PREVIEWABLE_TEXT.has(ext) || PREVIEWABLE_IMAGE.has(ext) || PREVIEWABLE_PDF.has(ext) || PREVIEWABLE_OFFICE.has(ext) || PREVIEWABLE_MARKDOWN.has(ext) || PREVIEWABLE_LINK.has(ext) || PREVIEWABLE_VIDEO.has(ext) || PREVIEWABLE_AUDIO.has(ext);
 }
 
 export function getPreviewType(ext: string): string | null {
@@ -58,6 +63,8 @@ export function getPreviewType(ext: string): string | null {
   if (PREVIEWABLE_PDF.has(ext)) return 'pdf';
   if (PREVIEWABLE_MARKDOWN.has(ext)) return 'markdown';
   if (PREVIEWABLE_LINK.has(ext)) return 'link';
+  if (PREVIEWABLE_VIDEO.has(ext)) return 'video';
+  if (PREVIEWABLE_AUDIO.has(ext)) return 'audio';
   if (PREVIEWABLE_TEXT.has(ext)) return 'text';
   if (PREVIEWABLE_OFFICE.has(ext)) return 'office';
   return null;

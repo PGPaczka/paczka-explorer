@@ -8,13 +8,15 @@ const router = Router();
 
 const MIME_TYPES: Record<string, string> = {
   '.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png',
-  '.gif':'image/gif','.svg':'image/svg+xml','.webp':'image/webp','.bmp':'image/bmp',
+  '.gif':'image/gif','.svg':'image/svg+xml','.webp':'image/webp','.bmp':'image/bmp','.tif':'image/tiff',
   '.txt':'text/plain; charset=utf-8','.csv':'text/plain; charset=utf-8',
   '.json':'application/json','.xml':'text/xml',
   '.docx':'application/vnd.openxmlformats-officedocument.wordprocessingml.document',
   '.pptx':'application/vnd.openxmlformats-officedocument.presentationml.presentation',
   '.xlsx':'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   '.doc':'application/msword','.ppt':'application/vnd.ms-powerpoint','.xls':'application/vnd.ms-excel',
+  '.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime',
+  '.wav':'audio/wav','.mp3':'audio/mpeg','.ogg':'audio/ogg','.flac':'audio/flac',
 };
 
 router.get('/view/:path(*)', (req, res) => {

@@ -182,6 +182,14 @@ function PreviewSlide({ file, getUrl, visible, viewMode }) {
         <Box component="img" src={url} alt={file.name} sx={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 1 }} />
       )}
 
+      {file.previewType === 'video' && (
+        <Box component="video" controls src={url} sx={{ maxWidth: '100%', maxHeight: '70vh', borderRadius: 1 }} />
+      )}
+
+      {file.previewType === 'audio' && (
+        <Box component="audio" controls src={url} sx={{ width: '100%', maxWidth: 500 }} />
+      )}
+
       {file.previewType === 'text' && (
         isRenderable && viewMode === 'render' ? (
           <Box sx={{ width: '100%', maxHeight: '70vh', overflow: 'auto', p: 2 }}
