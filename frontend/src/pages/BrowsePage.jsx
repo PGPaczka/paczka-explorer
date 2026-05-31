@@ -24,7 +24,8 @@ import ViewList from '@mui/icons-material/ViewList'
 import GridView from '@mui/icons-material/GridView'
 import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
 import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
-import { fetchBrowse, fetchBrowseZip, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
+import Login from '@mui/icons-material/Login'
+import { fetchBrowse, fetchBrowseZip, fetchAuthStatus, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
@@ -57,6 +58,7 @@ export default function BrowsePage() {
   const [data, setData] = useState(null)
   const [loading, setLoading] = useState(true)
   const [refreshing, setRefreshing] = useState(false)
+  const [isAdminLogged, setIsAdminLogged] = useState(false)
   const [inputValue, setInputValue] = useState('')
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(new Set())
@@ -117,6 +119,20 @@ export default function BrowsePage() {
   }
 
   useEffect(() => { loadData(false) }, [currentPath])
+
+  useEffect(() => {
+    let cancelled = false
+    const loadAuthStatus = async () => {
+      try {
+        const { isAdmin } = await fetchAuthStatus()
+        if (!cancelled) setIsAdminLogged(Boolean(isAdmin))
+      } catch {
+        if (!cancelled) setIsAdminLogged(false)
+      }
+    }
+    loadAuthStatus()
+    return () => { cancelled = true }
+  }, [])
 
   // Global search with debounce + AbortController
   useEffect(() => {
@@ -442,6 +458,17 @@ export default function BrowsePage() {
 
       {/* Refreshing indicator (non-blocking) */}
       {refreshing && <LinearProgress sx={{ position: 'fixed', top: 0, left: 0, right: 0, zIndex: 1300 }} />}
+
+      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 1 }}>
+        <Typography variant="h5" fontWeight={600}>Paczka INFA</Typography>
+        <Button
+          variant="outlined"
+          startIcon={<Login />}
+          onClick={() => navigate('/admin')}
+        >
+          {isAdminLogged ? 'Panel admina' : 'Zaloguj się'}
+        </Button>
+      </Stack>
 
       {/* Breadcrumb with autocomplete */}
       <Breadcrumbs sx={{ mb: 2 }}>

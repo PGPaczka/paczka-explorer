@@ -1,14 +1,6 @@
 import path from 'path';
 import fs from 'fs';
-import dotenv from 'dotenv';
-
-// ─── Config ────────────────────────────────────────────────────────────────────
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
-dotenv.config({ path: path.join(PROJECT_ROOT, '.env') });
-
-const FILES_ROOT = path.resolve(PROJECT_ROOT, process.env.FILES_ROOT || 'Paczki INFA - Uporządkowane');
-const INDEX_FILE = path.resolve(PROJECT_ROOT, process.env.INDEX_FILE || 'INDEKS.csv');
-const INDEX_DIR_FILE = path.resolve(PROJECT_ROOT, process.env.INDEX_DIR_FILE || 'INDEKS_DIR.csv');
+import { FILES_ROOT, INDEX_DIR_FILE, INDEX_FILE } from './config';
 
 // ─── Description / Category mapping ───────────────────────────────────────────
 const CATEGORY_DESC: Record<string, string> = {
@@ -61,7 +53,11 @@ interface DirEntry {
   fileCount: number;
 }
 
-function regenerateRaw(): string[] {
+function normalizePath(p: string): string {
+  return p.replace(/\\/g, '/');
+}
+
+function regenerateRaw(): { allFiles: string[]; dirCount: number } {
   const allFiles: string[] = [];
   const allDirs: DirEntry[] = [];
 
@@ -89,7 +85,7 @@ function regenerateRaw(): string[] {
 
     const relDir = path.relative(FILES_ROOT, dir);
     if (relDir && relDir !== '.') {
-      allDirs.push({ relDir, fileCount });
+      allDirs.push({ relDir: normalizePath(relDir), fileCount });
     }
   }
 
@@ -101,14 +97,11 @@ function regenerateRaw(): string[] {
   // Write INDEKS_DIR.csv
   const dirLines: string[] = ['ŚCIEŻKA KATALOGU; LICZBA PLIKÓW; GŁĘBOKOŚĆ'];
   for (const { relDir, fileCount } of allDirs) {
-    const depth = relDir.split(path.sep).length;
+    const depth = relDir.split('/').filter(Boolean).length;
     dirLines.push(`${relDir}; ${fileCount}; ${depth}`);
   }
   fs.writeFileSync(INDEX_DIR_FILE, dirLines.join('\n'), 'utf-8');
-  console.log(`Zapisano ${allDirs.length} katalogów do ${INDEX_DIR_FILE}`);
-
-  console.log(`Znaleziono ${allFiles.length} plików`);
-  return allFiles;
+  return { allFiles, dirCount: allDirs.length };
 }
 
 // ─── Phase 2: Generate structured index ───────────────────────────────────────
@@ -119,7 +112,7 @@ function generateIndex(allFiles: string[]): void {
   outputLines.push('='.repeat(140));
 
   for (const filePath of allFiles) {
-    const relativePath = path.relative(FILES_ROOT, filePath);
+    const relativePath = normalizePath(path.relative(FILES_ROOT, filePath));
 
     const semester = detectSemester(relativePath);
     const subject = detectSubject(relativePath);
@@ -137,11 +130,21 @@ function generateIndex(allFiles: string[]): void {
   }
 
   fs.writeFileSync(INDEX_FILE, outputLines.join('\n'), 'utf-8');
-  console.log(`Wygenerowano indeks: ${INDEX_FILE}`);
-  console.log(`Liczba zindeksowanych plików: ${outputLines.length - 2}`);
 }
 
-// ─── Main ──────────────────────────────────────────────────────────────────────
+export interface ReindexStats {
+  fileCount: number;
+  dirCount: number;
+}
+
+/**
+ * Rebuild INDEKS.csv and INDEKS_DIR.csv from FILES_ROOT.
+ */
+export function rebuildIndexFiles(): ReindexStats {
+  const { allFiles, dirCount } = regenerateRaw();
+  generateIndex(allFiles);
+  return { fileCount: allFiles.length, dirCount };
+}
 
 function main(): void {
   console.log(`FILES_ROOT: ${FILES_ROOT}`);
@@ -149,14 +152,13 @@ function main(): void {
   console.log(`INDEX_DIR_FILE: ${INDEX_DIR_FILE}`);
   console.log('');
 
-  // Phase 1
-  console.log('--- Faza 1: Skanowanie plików ---');
-  const allFiles = regenerateRaw();
-  console.log('');
-
-  // Phase 2
-  console.log('--- Faza 2: Generowanie indeksu ---');
-  generateIndex(allFiles);
+  console.log('--- Reindex ---');
+  const stats = rebuildIndexFiles();
+  console.log(`Zapisano ${stats.dirCount} katalogów do ${INDEX_DIR_FILE}`);
+  console.log(`Wygenerowano indeks: ${INDEX_FILE}`);
+  console.log(`Liczba zindeksowanych plików: ${stats.fileCount}`);
 }
 
-main();
+if (require.main === module) {
+  main();
+}

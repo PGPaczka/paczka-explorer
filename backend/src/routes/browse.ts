@@ -2,7 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { FILES_ROOT, GITHUB_PR_URL } from '../config';
-import { safePath, formatSize, getIcon, isPreviewable, getPreviewType, countFiles, checkAdmin } from '../helpers';
+import { safePath, formatSize, isPreviewable, getPreviewType, countFiles, checkAdmin } from '../helpers';
 import { getDescription } from '../search';
 
 function detectLinkService(url: string): string {
@@ -55,7 +55,7 @@ router.get('/api/browse/:path(*)?', (req, res) => {
 
         const fileEntry: any = {
           name: entry.name, rel, ext, size: stat.size,
-          sizeFormatted: formatSize(stat.size), icon: getIcon(ext),
+          sizeFormatted: formatSize(stat.size),
           previewable: isPreviewable(ext), previewType,
           description: getDescription(rel),
         };

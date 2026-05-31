@@ -3,6 +3,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { Request } from 'express';
 import { FILES_ROOT, PENDING_META, ADMIN_PASSWORD } from './config';
+import previewableExtensions from './previewable-extensions.json';
 
 // ============ PENDING ============
 
@@ -27,47 +28,22 @@ export function formatSize(b: number): string {
   return `${(b / (1024 * 1024)).toFixed(1)} MB`;
 }
 
-const ICONS: Record<string, string> = {
-  '.pdf':'📄','.jpg':'🖼️','.jpeg':'🖼️','.png':'🖼️','.gif':'🖼️','.docx':'📝','.doc':'📝',
-  '.pptx':'📊','.ppt':'📊','.zip':'📦','.rar':'📦','.7z':'📦','.py':'💻','.java':'💻',
-  '.c':'💻','.cpp':'💻','.cs':'💻','.js':'💻','.html':'💻','.css':'💻','.txt':'📋',
-  '.md':'📋','.xlsx':'📊','.csv':'📊','.m':'💻','.asm':'💻',
-};
-
-export function getIcon(ext: string): string {
-  return ICONS[ext.toLowerCase()] || '📎';
-}
-
-const PREVIEWABLE_TEXT = new Set(['.txt','.py','.java','.c','.cpp','.cs','.js','.html','.css',
-  '.h','.hpp','.asm','.s','.m','.sql','.xml','.json','.yml','.yaml','.sh','.bat',
-  '.cfg','.ini','.log','.csv','.adb','.ads','.hs','.st','.pl','.pro','.ts','.rb','.php','.r','.kt','.swift','.go','.rs',
-  '.tex','.typ','.bib','.mmd','.env','.in','.dat','.data','.names','.org','.ws',
-  '.aspx','.csproj','.sln','.config','.resx','.filters','.xaml','.xsd','.xslt','.kml','.user','.build',
-  '.ipynb','.out']);
-const PREVIEWABLE_IMAGE = new Set(['.jpg','.jpeg','.png','.gif','.bmp','.webp','.svg']);
-const PREVIEWABLE_PDF = new Set(['.pdf']);
-const PREVIEWABLE_OFFICE = new Set(['.docx','.doc','.pptx','.ppt','.xlsx','.xls','.odt','.odp','.ods','.pps']);
-const PREVIEWABLE_MARKDOWN = new Set(['.md']);
-const PREVIEWABLE_LINK = new Set(['.url','.webloc']);
-const PREVIEWABLE_VIDEO = new Set(['.mp4','.webm','.mov']);
-const PREVIEWABLE_AUDIO = new Set(['.wav','.mp3','.ogg','.flac']);
+const PREVIEWABLE_TYPES = Object.entries(previewableExtensions as Record<string, string[]>)
+  .reduce((acc, [type, exts]) => {
+    for (const ext of exts) {
+      acc[ext.toLowerCase()] = type;
+    }
+    return acc;
+  }, {} as Record<string, string>);
 
 export function isPreviewable(ext: string): boolean {
   ext = ext.toLowerCase();
-  return PREVIEWABLE_TEXT.has(ext) || PREVIEWABLE_IMAGE.has(ext) || PREVIEWABLE_PDF.has(ext) || PREVIEWABLE_OFFICE.has(ext) || PREVIEWABLE_MARKDOWN.has(ext) || PREVIEWABLE_LINK.has(ext) || PREVIEWABLE_VIDEO.has(ext) || PREVIEWABLE_AUDIO.has(ext);
+  return Object.prototype.hasOwnProperty.call(PREVIEWABLE_TYPES, ext);
 }
 
 export function getPreviewType(ext: string): string | null {
   ext = ext.toLowerCase();
-  if (PREVIEWABLE_IMAGE.has(ext)) return 'image';
-  if (PREVIEWABLE_PDF.has(ext)) return 'pdf';
-  if (PREVIEWABLE_MARKDOWN.has(ext)) return 'markdown';
-  if (PREVIEWABLE_LINK.has(ext)) return 'link';
-  if (PREVIEWABLE_VIDEO.has(ext)) return 'video';
-  if (PREVIEWABLE_AUDIO.has(ext)) return 'audio';
-  if (PREVIEWABLE_TEXT.has(ext)) return 'text';
-  if (PREVIEWABLE_OFFICE.has(ext)) return 'office';
-  return null;
+  return PREVIEWABLE_TYPES[ext] || null;
 }
 
 // ============ PATH SAFETY ============

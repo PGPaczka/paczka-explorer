@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { createReadStream } from 'fs';
 import { FILES_ROOT, GITHUB_PR_URL } from '../config';
-import { safePath, formatSize, getIcon, isPreviewable, getPreviewType, checkAdmin } from '../helpers';
+import { safePath, formatSize, isPreviewable, getPreviewType, checkAdmin } from '../helpers';
 
 const router = Router();
 
@@ -61,7 +61,6 @@ router.get('/api/browse-zip/:path(*)', async (req, res) => {
           ext,
           size: entry.uncompressedSize || 0,
           sizeFormatted: formatSize(entry.uncompressedSize || 0),
-          icon: getIcon(ext),
           previewable: isPreviewable(ext),
           previewType: getPreviewType(ext),
           description: '',

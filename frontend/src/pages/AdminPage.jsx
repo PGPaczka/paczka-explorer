@@ -15,7 +15,8 @@ import Visibility from '@mui/icons-material/Visibility'
 import Assignment from '@mui/icons-material/Assignment'
 import Language from '@mui/icons-material/Language'
 import CalendarToday from '@mui/icons-material/CalendarToday'
-import { fetchPendingAll, fetchAuthStatus, logout, adminApprove, adminReject, adminApproveFile, adminRejectFile } from '../api'
+import Autorenew from '@mui/icons-material/Autorenew'
+import { fetchPendingAll, fetchAuthStatus, logout, adminApprove, adminReject, adminApproveFile, adminRejectFile, adminReindex } from '../api'
 import PreviewModal from '../components/PreviewModal'
 
 export default function AdminPage() {
@@ -24,6 +25,8 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
+  const [reindexing, setReindexing] = useState(false)
+  const [reindexAlert, setReindexAlert] = useState(null)
 
   useEffect(() => {
     checkAuth()
@@ -84,6 +87,25 @@ export default function AdminPage() {
     setPreviewOpen(true)
   }
 
+  const handleReindex = async () => {
+    setReindexing(true)
+    setReindexAlert(null)
+    try {
+      const result = await adminReindex()
+      setReindexAlert({
+        severity: 'success',
+        message: `Reindex zakończony. Pliki: ${result.fileCount}, katalogi: ${result.dirCount}`,
+      })
+    } catch (err) {
+      setReindexAlert({
+        severity: 'error',
+        message: `Błąd reindexu: ${err.message}`,
+      })
+    } finally {
+      setReindexing(false)
+    }
+  }
+
   const formatSize = (b) => {
     if (b < 1024) return `${b} B`
     if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
@@ -103,6 +125,15 @@ export default function AdminPage() {
       <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
         <Typography variant="h5"><Assignment sx={{ fontSize: 22, verticalAlign: 'text-bottom', mr: 0.5 }} />Do zatwierdzenia ({pending.length} grup)</Typography>
         <Stack direction="row" gap={1}>
+          <Button
+            variant="contained"
+            color="secondary"
+            startIcon={<Autorenew />}
+            onClick={handleReindex}
+            disabled={reindexing}
+          >
+            {reindexing ? 'Reindexowanie...' : 'Reindex'}
+          </Button>
           <Button variant="outlined" onClick={() => navigate('/browse')}>
             Przeglądaj pliki
           </Button>
@@ -111,6 +142,12 @@ export default function AdminPage() {
           </Button>
         </Stack>
       </Stack>
+
+      {reindexAlert && (
+        <Alert severity={reindexAlert.severity} sx={{ mb: 2 }}>
+          {reindexAlert.message}
+        </Alert>
+      )}
 
       {pending.length === 0 ? (
         <Paper sx={{ p: 5, textAlign: 'center' }}>

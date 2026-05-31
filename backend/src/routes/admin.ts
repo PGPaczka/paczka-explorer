@@ -7,6 +7,7 @@ import { FILES_ROOT, PENDING_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '
 import { checkAdmin, safePath, loadPending, savePending } from '../helpers';
 import { rateLimitUpload } from '../rateLimit';
 import { notifyNewUpload } from '../discord';
+import { rebuildIndex } from '../search';
 
 const router = Router();
 
@@ -27,6 +28,16 @@ router.get('/api/pending/:path(*)?', (req, res) => {
   const p = req.params.path || '';
   const pending = loadPending();
   res.json({ pending: pending.filter(g => (g.target_path || '') === p) });
+});
+
+router.post('/api/admin/reindex', (_req, res) => {
+  if (!checkAdmin(_req)) return res.status(403).json({ detail: 'Forbidden' });
+  try {
+    const stats = rebuildIndex();
+    res.json({ success: true, ...stats });
+  } catch (err: any) {
+    res.status(500).json({ detail: `Błąd reindexu: ${err.message}` });
+  }
 });
 
 // ============ UPLOAD ============

@@ -163,6 +163,18 @@ export async function adminRename(path, newName) {
   return res.json()
 }
 
+export async function adminReindex() {
+  const res = await fetch(`${API_BASE}/api/admin/reindex`, {
+    ...fetchOpts,
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.detail || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function downloadSelected(files) {
   const res = await fetch(`${API_BASE}/api/download-selected`, {
     ...fetchOpts,

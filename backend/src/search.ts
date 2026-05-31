@@ -1,7 +1,8 @@
 import fs from 'fs';
 import path from 'path';
 import { INDEX_FILE } from './config';
-import { formatSize, getIcon, isPreviewable, getPreviewType } from './helpers';
+import { formatSize, isPreviewable, getPreviewType } from './helpers';
+import { rebuildIndexFiles } from './indexer';
 
 // ============ IN-MEMORY INDEX ============
 
@@ -14,7 +15,6 @@ interface IndexEntry {
   subject: string;
   size: number;
   sizeFormatted: string;
-  icon: string;
   previewable: boolean;
   previewType: string | null;
   description: string;
@@ -26,7 +26,6 @@ interface IndexEntry {
 let _entries: IndexEntry[] = [];
 let _descriptions: Record<string, string> = {};
 let _loaded = false;
-let _watcher: fs.FSWatcher | null = null;
 
 /**
  * Load the entire index CSV into memory.
@@ -75,7 +74,6 @@ export function loadIndex(force = false): void {
       subject,
       size,
       sizeFormatted: formatSize(size),
-      icon: getIcon(ext),
       previewable: isPreviewable(ext),
       previewType: getPreviewType(ext),
       description: desc,
@@ -88,21 +86,10 @@ export function loadIndex(force = false): void {
   console.log(`[search] Index loaded: ${_entries.length} entries in memory`);
 }
 
-/**
- * Watch the index file for changes and auto-reload.
- */
-export function watchIndex(): void {
-  if (_watcher) return;
-  if (!fs.existsSync(INDEX_FILE)) return;
-
-  let debounce: ReturnType<typeof setTimeout> | null = null;
-  _watcher = fs.watch(INDEX_FILE, () => {
-    if (debounce) clearTimeout(debounce);
-    debounce = setTimeout(() => {
-      console.log('[search] Index file changed, reloading...');
-      loadIndex(true);
-    }, 500);
-  });
+export function rebuildIndex(): { fileCount: number; dirCount: number } {
+  const stats = rebuildIndexFiles();
+  loadIndex(true);
+  return stats;
 }
 
 /**
@@ -178,7 +165,6 @@ export function searchIndex(query: string): any[] {
         ext: entry.ext,
         size: entry.size,
         sizeFormatted: entry.sizeFormatted,
-        icon: entry.icon,
         previewable: entry.previewable,
         previewType: entry.previewType,
         description: entry.description,

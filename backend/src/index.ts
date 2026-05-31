@@ -4,7 +4,7 @@ import fs from 'fs';
 import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { PORT, CORS_ORIGIN, PENDING_DIR, FILES_ROOT } from './config';
+import { PORT, CORS_ORIGIN, PENDING_DIR, FILES_ROOT, INDEX_FILE, INDEX_DIR_FILE } from './config';
 
 import authRoutes from './routes/auth';
 import browseRoutes from './routes/browse';
@@ -13,15 +13,21 @@ import filesRoutes from './routes/files';
 import zipRoutes from './routes/zip';
 import zipBrowseRoutes from './routes/zipBrowse';
 import adminRoutes from './routes/admin';
-import { loadIndex, watchIndex } from './search';
+import { loadIndex, rebuildIndex } from './search';
 import { rateLimitGeneral } from './rateLimit';
 
 // Ensure pending dir exists
 fs.mkdirSync(PENDING_DIR, { recursive: true });
 
-// Pre-load search index into memory for fast queries
-loadIndex();
-watchIndex();
+// Pre-load search index into memory for fast queries.
+// If index files are missing on startup, build them first.
+if (!fs.existsSync(INDEX_FILE) || !fs.existsSync(INDEX_DIR_FILE)) {
+  console.log('[startup] Missing index files, running initial reindex...');
+  const stats = rebuildIndex();
+  console.log(`[startup] Initial reindex done: ${stats.fileCount} files, ${stats.dirCount} dirs`);
+} else {
+  loadIndex();
+}
 
 const app = express();
 
