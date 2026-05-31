@@ -62,24 +62,29 @@ const FileEntry = memo(function FileEntry({
         <FileIcon file={file} />
       </ListItemIcon>
       <ListItemText
+        sx={{ minWidth: 0 }}
         primary={
           file.previewable ? (
             <Link
               component="button"
               underline="hover"
               onClick={() => onPreview?.(file)}
-              sx={{ textAlign: 'left', fontWeight: 500 }}
+              sx={{ textAlign: 'left', fontWeight: 500, overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}
             >
               {file.name}
             </Link>
           ) : (
-            <Link href={dlUrl} underline="hover" sx={{ fontWeight: 500 }}>
+            <Link
+              href={dlUrl}
+              underline="hover"
+              sx={{ fontWeight: 500, overflowWrap: 'anywhere', wordBreak: 'break-word', whiteSpace: 'normal' }}
+            >
               {file.name}
             </Link>
           )
         }
         secondary={
-          <span>
+          <span style={{ overflowWrap: 'anywhere', wordBreak: 'break-word' }}>
             {showPath && (
               <>
                 <Link
@@ -88,7 +93,7 @@ const FileEntry = memo(function FileEntry({
                   underline="hover"
                   color="text.secondary"
                   onClick={() => onNavigatePath?.(file.path || '')}
-                  sx={{ verticalAlign: 'baseline' }}
+                  sx={{ verticalAlign: 'baseline', overflowWrap: 'anywhere', wordBreak: 'break-word', textAlign: 'left' }}
                 >
                   <FolderOpen sx={{ fontSize: 14, verticalAlign: 'text-bottom', mr: 0.3 }} />{file.path || 'Główna'}
                 </Link>
@@ -105,6 +110,8 @@ const FileEntry = memo(function FileEntry({
             )}
           </span>
         }
+        primaryTypographyProps={{ component: 'div', sx: { whiteSpace: 'normal', overflowWrap: 'anywhere', wordBreak: 'break-word' } }}
+        secondaryTypographyProps={{ component: 'div', sx: { whiteSpace: 'normal', overflowWrap: 'anywhere', wordBreak: 'break-word' } }}
       />
       {file.previewable && (
         <Tooltip title="Podgląd">

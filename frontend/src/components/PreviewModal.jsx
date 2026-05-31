@@ -304,8 +304,20 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
   if (!file) return null
 
   return (
-    <Dialog open={open} onClose={onClose} maxWidth="lg" fullWidth>
-      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1 }}>
+    <Dialog
+      open={open}
+      onClose={onClose}
+      maxWidth="lg"
+      fullWidth
+      PaperProps={{
+        sx: {
+          m: { xs: 0.5, sm: 2 },
+          width: { xs: 'calc(100% - 8px)', sm: 'calc(100% - 32px)' },
+          maxHeight: { xs: 'calc(100% - 8px)', sm: 'calc(100% - 32px)' },
+        },
+      }}
+    >
+      <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1, px: { xs: 1, sm: 2 } }}>
         {!isPending && (
           <IconButton disabled={index <= 0} onClick={() => onIndexChange(index - 1)}>
             <ArrowBack />
@@ -327,7 +339,19 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
             <ToggleButton value="plain"><Code fontSize="small" /></ToggleButton>
           </ToggleButtonGroup>
         )}
-        <Typography variant="subtitle1" sx={{ flex: 1, textAlign: 'center', wordBreak: 'break-all' }}>
+        <Typography
+          variant="subtitle1"
+          title={file.name}
+          sx={{
+            flex: 1,
+            minWidth: 0,
+            textAlign: 'center',
+            overflow: 'hidden',
+            textOverflow: 'ellipsis',
+            whiteSpace: 'nowrap',
+            px: 0.5,
+          }}
+        >
           {file.name}
         </Typography>
         <Stack direction="row" gap={0.5}>
@@ -339,7 +363,16 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
           <IconButton onClick={onClose}><Close /></IconButton>
         </Stack>
       </DialogTitle>
-      <DialogContent sx={{ minHeight: 400, position: 'relative', display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+      <DialogContent
+        sx={{
+          minHeight: { xs: '70vh', sm: 400 },
+          p: { xs: 1, sm: 2 },
+          position: 'relative',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+        }}
+      >
         {renderIndices.map((i) => (
           <PreviewSlide
             key={files[i]?.rel || i}

@@ -116,43 +116,53 @@ export default function AdminPage() {
 
   if (loading) {
     return (
-      <Container maxWidth="md" sx={{ mt: 4 }}>
+      <Container maxWidth="md" sx={{ mt: 4, px: { xs: 1.5, sm: 3 } }}>
         <LinearProgress />
       </Container>
     )
   }
 
   return (
-    <Container maxWidth="md" sx={{ py: 3 }}>
-      <Stack direction="row" justifyContent="space-between" alignItems="center" sx={{ mb: 3 }}>
-        <Typography variant="h5"><Assignment sx={{ fontSize: 22, verticalAlign: 'text-bottom', mr: 0.5 }} />Do zatwierdzenia ({pending.length} grup)</Typography>
-        <Stack direction="row" gap={1}>
+    <Container maxWidth="md" sx={{ py: 3, px: { xs: 1.5, sm: 3 } }}>
+      <Stack
+        direction={{ xs: 'column', sm: 'row' }}
+        justifyContent="space-between"
+        alignItems={{ xs: 'stretch', sm: 'center' }}
+        gap={{ xs: 1.5, sm: 2 }}
+        sx={{ mb: 3 }}
+      >
+        <Typography variant="h6" sx={{ lineHeight: 1.25 }}>
+          <Assignment sx={{ fontSize: 22, verticalAlign: 'text-bottom', mr: 0.5 }} />
+          Do zatwierdzenia ({pending.length} grup)
+        </Typography>
+        <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
           <Button
             variant="contained"
             color="secondary"
             startIcon={<Autorenew />}
             onClick={handleReindex}
             disabled={reindexing}
+            fullWidth
           >
             {reindexing ? 'Reindexowanie...' : 'Reindex'}
           </Button>
-          <Button variant="outlined" onClick={() => navigate('/browse')}>
+          <Button variant="outlined" onClick={() => navigate('/browse')} fullWidth>
             Przeglądaj pliki
           </Button>
-          <Button variant="outlined" color="error" startIcon={<Logout />} onClick={handleLogout}>
+          <Button variant="outlined" color="error" startIcon={<Logout />} onClick={handleLogout} fullWidth>
             Wyloguj
           </Button>
         </Stack>
       </Stack>
 
       {reindexAlert && (
-        <Alert severity={reindexAlert.severity} sx={{ mb: 2 }}>
+        <Alert severity={reindexAlert.severity} sx={{ mb: 2, wordBreak: 'break-word' }}>
           {reindexAlert.message}
         </Alert>
       )}
 
       {filesRootGit && (
-        <Alert severity="info" sx={{ mb: 2 }}>
+        <Alert severity="info" sx={{ mb: 2, wordBreak: 'break-word' }}>
           FILES_ROOT: <code>{filesRootGit.shortCommit}</code>
           {filesRootGit.branch ? ` (${filesRootGit.branch})` : ''}
           {filesRootGit.committedAt ? ` · commit: ${new Date(filesRootGit.committedAt).toLocaleString()}` : ''}
@@ -174,15 +184,27 @@ export default function AdminPage() {
             {group.type === 'folder' ? (
               <Box sx={{ p: 2 }}>
                 <Stack direction="row" alignItems="center" gap={1} sx={{ mb: 1 }}>
-                  <Folder color="primary" />
+                  <FolderIcon color="primary" />
                   <Typography fontWeight={600}>
                     Nowy folder: <code>{group.folder_name}</code>
                   </Typography>
                 </Stack>
-                <Typography variant="body2" color="text.secondary">
-                  <FolderIcon sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> W: {group.target_path || '/'} | <Language sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {group.ip} | <CalendarToday sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {group.uploaded_at?.slice(0, 16)}
-                </Typography>
-                <Stack direction="row" gap={1} sx={{ mt: 2 }}>
+                <Stack
+                  direction={{ xs: 'column', sm: 'row' }}
+                  spacing={{ xs: 0.5, sm: 1.5 }}
+                  sx={{ color: 'text.secondary' }}
+                >
+                  <Typography variant="body2">
+                    <FolderIcon sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> W: {group.target_path || '/'}
+                  </Typography>
+                  <Typography variant="body2">
+                    <Language sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {group.ip}
+                  </Typography>
+                  <Typography variant="body2">
+                    <CalendarToday sx={{ fontSize: 14, verticalAlign: 'text-bottom' }} /> {group.uploaded_at?.slice(0, 16)}
+                  </Typography>
+                </Stack>
+                <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} sx={{ mt: 2 }}>
                   <Button size="small" variant="contained" color="success" startIcon={<CheckCircle />} onClick={() => handleApprove(group.group_id)}>
                     Utwórz
                   </Button>
@@ -194,19 +216,21 @@ export default function AdminPage() {
             ) : (
               <Accordion defaultExpanded>
                 <AccordionSummary expandIcon={<ExpandMore />}>
-                  <Stack direction="row" alignItems="center" gap={1} sx={{ width: '100%', pr: 2 }}>
-                    <UploadFile color="warning" />
-                    <Typography fontWeight={600}>
-                      {group.files?.length || 0} plik(ów) od <em>{group.uploader}</em>
-                    </Typography>
-                    <Chip size="small" label={group.target_path || '/'} variant="outlined" />
-                    <Typography variant="caption" color="text.secondary" sx={{ ml: 'auto' }}>
-                      {group.ip} | {group.uploaded_at?.slice(0, 16)} | {formatSize(group.files?.reduce((s, f) => s + f.size, 0) || 0)}
+                  <Stack direction={{ xs: 'column', sm: 'row' }} alignItems={{ xs: 'flex-start', sm: 'center' }} gap={1} sx={{ width: '100%', pr: 1 }}>
+                    <Stack direction="row" alignItems="center" gap={1} sx={{ width: '100%' }}>
+                      <UploadFile color="warning" />
+                      <Typography fontWeight={600} sx={{ lineHeight: 1.3 }}>
+                        {group.files?.length || 0} plik(ów) od <em>{group.uploader}</em>
+                      </Typography>
+                    </Stack>
+                    <Chip size="small" label={group.target_path || '/'} variant="outlined" sx={{ maxWidth: '100%' }} />
+                    <Typography variant="caption" color="text.secondary" sx={{ wordBreak: 'break-word' }}>
+                      {group.ip} · {group.uploaded_at?.slice(0, 16)} · {formatSize(group.files?.reduce((s, f) => s + f.size, 0) || 0)}
                     </Typography>
                   </Stack>
                 </AccordionSummary>
                 <AccordionDetails>
-                  <Stack direction="row" gap={1} sx={{ mb: 2 }}>
+                  <Stack direction={{ xs: 'column', sm: 'row' }} gap={1} sx={{ mb: 2 }}>
                     <Button size="small" variant="contained" color="success" startIcon={<CheckCircle />} onClick={() => handleApprove(group.group_id)}>
                       Zatwierdź wszystkie
                     </Button>
@@ -219,12 +243,22 @@ export default function AdminPage() {
                     {group.files?.map((file) => {
                       const ext = file.original_name.split('.').pop()?.toLowerCase()
                       return (
-                        <ListItem key={file.file_id} sx={{ borderBottom: '1px solid', borderColor: 'divider' }}>
+                        <ListItem
+                          key={file.file_id}
+                          sx={{
+                            borderBottom: '1px solid',
+                            borderColor: 'divider',
+                            alignItems: { xs: 'flex-start', sm: 'center' },
+                            flexDirection: { xs: 'column', sm: 'row' },
+                            gap: { xs: 1, sm: 0 },
+                          }}
+                        >
                           <ListItemText
                             primary={file.original_name}
                             secondary={formatSize(file.size)}
+                            sx={{ width: '100%', mr: { sm: 1 } }}
                           />
-                          <Stack direction="row" gap={0.5}>
+                          <Stack direction="row" gap={0.5} sx={{ alignSelf: { xs: 'flex-end', sm: 'auto' } }}>
                             <IconButton size="small" color="info" onClick={() => handlePreviewPending(file.file_id, file.original_name, '.' + ext)} title="Podgląd">
                               <Visibility fontSize="small" />
                             </IconButton>

@@ -13,9 +13,10 @@ import Download from '@mui/icons-material/Download'
 import Search from '@mui/icons-material/Search'
 import TravelExplore from '@mui/icons-material/TravelExplore'
 import ArrowUpward from '@mui/icons-material/ArrowUpward'
+import ArrowBack from '@mui/icons-material/ArrowBack'
+import ArrowForward from '@mui/icons-material/ArrowForward'
 import CloudUpload from '@mui/icons-material/CloudUpload'
 import CreateNewFolder from '@mui/icons-material/CreateNewFolder'
-import SelectAll from '@mui/icons-material/SelectAll'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
@@ -87,6 +88,11 @@ export default function BrowsePage() {
   const [sortDir, setSortDir] = useState('asc') // 'asc' | 'desc'
   const dragCounter = useRef(0)
   const abortRef = useRef(null)
+  const pathHistoryRef = useRef([currentPath])
+  const historyIndexRef = useRef(0)
+  const historyActionRef = useRef(null)
+  const [canGoBack, setCanGoBack] = useState(false)
+  const [canGoForward, setCanGoForward] = useState(false)
 
   // Debounce: inputValue -> search (keeps typing instant, delays filtering)
   useEffect(() => {
@@ -99,6 +105,11 @@ export default function BrowsePage() {
   const deferredFiles = useDeferredValue(filteredFiles)
 
   const isZipPath = currentPath.match(/\.zip(\/|$)/i)
+  const getZipRootPath = (p) => {
+    if (!p) return null
+    const m = p.match(/^(.+\.zip)(\/.*)?$/i)
+    return m ? m[1] : null
+  }
 
   const loadData = async (isRefresh = false) => {
     if (isRefresh) {
@@ -119,6 +130,35 @@ export default function BrowsePage() {
   }
 
   useEffect(() => { loadData(false) }, [currentPath])
+
+  const syncHistoryButtons = () => {
+    setCanGoBack(historyIndexRef.current > 0)
+    setCanGoForward(historyIndexRef.current < pathHistoryRef.current.length - 1)
+  }
+
+  useEffect(() => {
+    const action = historyActionRef.current
+    if (action === 'back' || action === 'forward') {
+      historyActionRef.current = null
+      syncHistoryButtons()
+      return
+    }
+
+    const stack = pathHistoryRef.current
+    const idx = historyIndexRef.current
+    if (stack[idx] === currentPath) {
+      syncHistoryButtons()
+      return
+    }
+
+    const nextStack = stack.slice(0, idx + 1)
+    if (nextStack[nextStack.length - 1] !== currentPath) {
+      nextStack.push(currentPath)
+    }
+    pathHistoryRef.current = nextStack
+    historyIndexRef.current = nextStack.length - 1
+    syncHistoryButtons()
+  }, [currentPath])
 
   useEffect(() => {
     let cancelled = false
@@ -221,9 +261,41 @@ export default function BrowsePage() {
   // Reset visible count when search changes
   useEffect(() => { setVisibleCount(20) }, [search, searchMode])
 
+  const currentFolderRels = useMemo(() => {
+    if (!data) return []
+    return [...data.dirs.map(d => d.rel), ...data.files.map(f => f.rel)]
+  }, [data])
+
+  const currentFolderSelectedCount = useMemo(
+    () => currentFolderRels.reduce((acc, rel) => acc + (selected.has(rel) ? 1 : 0), 0),
+    [currentFolderRels, selected],
+  )
+
   const handleNavigate = (path) => {
     const encodedPath = path ? path.split('/').map(encodeURIComponent).join('/') : ''
     navigate(encodedPath ? `/browse/${encodedPath}` : '/browse')
+  }
+
+  const handleNavigateUp = () => {
+    const segments = currentPath.split('/').filter(Boolean)
+    if (!segments.length) return
+    handleNavigate(segments.slice(0, -1).join('/'))
+  }
+
+  const handleHistoryBack = () => {
+    if (historyIndexRef.current <= 0) return
+    historyActionRef.current = 'back'
+    historyIndexRef.current -= 1
+    syncHistoryButtons()
+    handleNavigate(pathHistoryRef.current[historyIndexRef.current] || '')
+  }
+
+  const handleHistoryForward = () => {
+    if (historyIndexRef.current >= pathHistoryRef.current.length - 1) return
+    historyActionRef.current = 'forward'
+    historyIndexRef.current += 1
+    syncHistoryButtons()
+    handleNavigate(pathHistoryRef.current[historyIndexRef.current] || '')
   }
 
   const handleToggleSelect = (rel) => {
@@ -236,13 +308,17 @@ export default function BrowsePage() {
   }
 
   const handleSelectAll = () => {
-    if (!data) return
-    const allRels = [...data.dirs.map(d => d.rel), ...data.files.map(f => f.rel)]
-    if (selected.size === allRels.length) {
-      setSelected(new Set())
-    } else {
-      setSelected(new Set(allRels))
-    }
+    if (!currentFolderRels.length) return
+    setSelected(prev => {
+      const next = new Set(prev)
+      const allSelectedInCurrentFolder = currentFolderRels.every(rel => next.has(rel))
+      if (allSelectedInCurrentFolder) {
+        for (const rel of currentFolderRels) next.delete(rel)
+      } else {
+        for (const rel of currentFolderRels) next.add(rel)
+      }
+      return next
+    })
   }
 
   const handleDownloadSelected = async () => {
@@ -257,6 +333,11 @@ export default function BrowsePage() {
   }
 
   const handleDownloadFolder = async (folderPath) => {
+    const zipRootPath = getZipRootPath(folderPath)
+    if (zipRootPath) {
+      window.location.href = getDownloadUrl(zipRootPath)
+      return
+    }
     try {
       const { jobId, totalFiles } = await prepareZipFolder(folderPath)
       setZipJobId(jobId)
@@ -470,6 +551,30 @@ export default function BrowsePage() {
         </Button>
       </Stack>
 
+      <Stack direction="row" spacing={0.5} sx={{ mb: 1 }}>
+        <Tooltip title="Wstecz">
+          <span>
+            <IconButton size="small" onClick={handleHistoryBack} disabled={!canGoBack}>
+              <ArrowBack fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Dalej">
+          <span>
+            <IconButton size="small" onClick={handleHistoryForward} disabled={!canGoForward}>
+              <ArrowForward fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+        <Tooltip title="Katalog wyżej">
+          <span>
+            <IconButton size="small" onClick={handleNavigateUp} disabled={!currentPath}>
+              <ArrowUpward fontSize="small" />
+            </IconButton>
+          </span>
+        </Tooltip>
+      </Stack>
+
       {/* Breadcrumb with autocomplete */}
       <Breadcrumbs sx={{ mb: 2 }}>
         {data.breadcrumb.map((bc, i) => (
@@ -563,19 +668,30 @@ export default function BrowsePage() {
       )}
 
       {/* File type filter */}
-      <Stack direction="row" spacing={0.5} sx={{ mb: 1, flexWrap: 'wrap', gap: 0.5 }}>
-        {FILE_TYPE_FILTERS.map(ft => (
-          <Chip
-            key={ft.key}
-            label={ft.label}
-            size="small"
-            variant={typeFilter === ft.key ? 'filled' : 'outlined'}
-            color={typeFilter === ft.key ? 'primary' : 'default'}
-            onClick={() => setTypeFilter(ft.key === typeFilter ? 'all' : ft.key)}
-            sx={{ cursor: 'pointer' }}
-          />
-        ))}
-      </Stack>
+      <Box
+        sx={{
+          mb: 1,
+          overflowX: 'auto',
+          overflowY: 'hidden',
+          WebkitOverflowScrolling: 'touch',
+          '&::-webkit-scrollbar': { height: 6 },
+          '&::-webkit-scrollbar-thumb': { bgcolor: 'action.disabled', borderRadius: 3 },
+        }}
+      >
+        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'nowrap', minWidth: 'max-content', pb: 0.5 }}>
+          {FILE_TYPE_FILTERS.map(ft => (
+            <Chip
+              key={ft.key}
+              label={ft.label}
+              size="small"
+              variant={typeFilter === ft.key ? 'filled' : 'outlined'}
+              color={typeFilter === ft.key ? 'primary' : 'default'}
+              onClick={() => setTypeFilter(ft.key === typeFilter ? 'all' : ft.key)}
+              sx={{ cursor: 'pointer', flexShrink: 0 }}
+            />
+          ))}
+        </Stack>
+      </Box>
 
       {/* Global search results */}
       {searchMode === 'global' && search.length >= 2 && (
@@ -663,23 +779,9 @@ export default function BrowsePage() {
             <ToggleButton value="list"><Tooltip title="Widok listy"><ViewList /></Tooltip></ToggleButton>
             <ToggleButton value="grid"><Tooltip title="Widok siatki"><GridView /></Tooltip></ToggleButton>
           </ToggleButtonGroup>
-          <Button size="small" startIcon={<SelectAll />} onClick={handleSelectAll}>
-            {selected.size > 0 ? 'Odznacz' : 'Zaznacz'} wszystkie
-          </Button>
           {selected.size > 0 && (
             <Button size="small" variant="contained" startIcon={<Download />} onClick={handleDownloadSelected}>
-              Pobierz zaznaczone ({selected.size})
-            </Button>
-          )}
-          {currentPath && (
-            <Button
-              size="small"
-              variant="contained"
-              color="secondary"
-              startIcon={<Download />}
-              onClick={() => handleDownloadFolder(currentPath)}
-            >
-              Pobierz folder (ZIP)
+              Pobierz ({selected.size})
             </Button>
           )}
         </Stack>
@@ -689,6 +791,42 @@ export default function BrowsePage() {
       {data.isAdmin && (
         <PendingSection path={currentPath} onRefresh={() => loadData(true)} />
       )}
+
+      {/* Current folder header with actions */}
+      <Paper variant="outlined" sx={{ mb: 1 }}>
+        <List disablePadding>
+          <ListItem
+            sx={{
+              borderBottom: '1px solid',
+              borderColor: 'divider',
+              bgcolor: 'action.hover',
+            }}
+          >
+            <Checkbox
+              size="small"
+              checked={currentFolderRels.length > 0 && currentFolderSelectedCount === currentFolderRels.length}
+              indeterminate={currentFolderSelectedCount > 0 && currentFolderSelectedCount < currentFolderRels.length}
+              onChange={handleSelectAll}
+              sx={{ mr: 1 }}
+            />
+            <ListItemIcon sx={{ minWidth: 40 }}>
+              <FolderIcon color="primary" />
+            </ListItemIcon>
+            <ListItemText
+              primary={currentPath ? currentPath.split('/').filter(Boolean).slice(-1)[0] : 'Główna'}
+              secondary={`${data.dirs.length} folderów, ${data.files.length} plików`}
+            />
+            <Tooltip title="Pobierz">
+              <IconButton
+                size="small"
+                onClick={() => handleDownloadFolder(currentPath || '')}
+              >
+                <Download fontSize="small" />
+              </IconButton>
+            </Tooltip>
+          </ListItem>
+        </List>
+      </Paper>
 
       {/* File list / grid */}
       {viewMode === 'list' ? (
@@ -721,7 +859,7 @@ export default function BrowsePage() {
                 <Tooltip title="Pobierz ZIP">
                   <IconButton
                     size="small"
-                    onClick={(e) => { e.stopPropagation(); dir.isZip ? window.location.href = getDownloadUrl(dir.rel) : handleDownloadFolder(dir.rel) }}
+                    onClick={(e) => { e.stopPropagation(); handleDownloadFolder(dir.rel) }}
                   >
                     <Download fontSize="small" />
                   </IconButton>
@@ -794,7 +932,7 @@ export default function BrowsePage() {
                 selected={selected.has(dir.rel)}
                 onToggleSelect={() => handleToggleSelect(dir.rel)}
                 onNavigate={handleNavigate}
-                onDownload={dir.isZip ? null : handleDownloadFolder}
+                onDownload={handleDownloadFolder}
                 fileCount={dir.fileCount}
               />
             ))}
