@@ -14,7 +14,7 @@ export const METADATA_DB_PATH_IS_EXPLICIT =
   typeof process.env.METADATA_DB_PATH === 'string' && process.env.METADATA_DB_PATH.trim().length > 0;
 export const METADATA_DB_PATH = path.resolve(
   PROJECT_ROOT,
-  process.env.METADATA_DB_PATH || 'cursor-metadata-generator/metadata.sqlite'
+  process.env.METADATA_DB_PATH || 'metadata-generator/metadata.sqlite'
 );
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SERVICE_TOKENS_RAW = process.env.SERVICE_TOKENS || process.env.SERVICE_TOKEN || '';
