@@ -3,9 +3,8 @@ import { useLocation, useNavigate } from 'react-router-dom'
 import {
   Container, Box, Breadcrumbs, Link, Typography, TextField, InputAdornment,
   List, ListItem, ListItemIcon, ListItemText, Menu, MenuItem,
-  Checkbox, IconButton, Button, Paper, Snackbar, Alert, Tooltip, Chip,
+  Checkbox, IconButton, Button, Paper, Snackbar, Alert, Tooltip,
   Fab, Divider, Stack, LinearProgress, ToggleButton, ToggleButtonGroup,
-  Select, FormControl,
 } from '@mui/material'
 import FolderIcon from '@mui/icons-material/Folder'
 import InsertDriveFile from '@mui/icons-material/InsertDriveFile'
@@ -23,9 +22,10 @@ import EditIcon from '@mui/icons-material/Edit'
 import ExpandMore from '@mui/icons-material/ExpandMore'
 import ViewList from '@mui/icons-material/ViewList'
 import GridView from '@mui/icons-material/GridView'
-import ArrowUpwardIcon from '@mui/icons-material/ArrowUpward'
-import ArrowDownwardIcon from '@mui/icons-material/ArrowDownward'
 import Login from '@mui/icons-material/Login'
+import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined'
+import SwapVert from '@mui/icons-material/SwapVert'
+import Home from '@mui/icons-material/Home'
 import { fetchBrowse, fetchBrowseZip, fetchAuthStatus, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
 import CreateFolderDialog from '../components/CreateFolderDialog'
@@ -78,7 +78,7 @@ export default function BrowsePage() {
   const [filteredDirs, setFilteredDirs] = useState([])
   const [filteredFiles, setFilteredFiles] = useState([])
   const [visibleCount, setVisibleCount] = useState(20)
-  const [typeFilter, setTypeFilter] = useState('all')
+  const [typeFilters, setTypeFilters] = useState(() => FILE_TYPE_FILTERS.filter(f => f.key !== 'all').map(f => f.key))
   const [breadcrumbAnchor, setBreadcrumbAnchor] = useState(null)
   const [breadcrumbMenuPath, setBreadcrumbMenuPath] = useState('')
   const [breadcrumbSubdirs, setBreadcrumbSubdirs] = useState([])
@@ -86,13 +86,27 @@ export default function BrowsePage() {
   const [viewMode, setViewMode] = useState(() => localStorage.getItem('paczka-view-mode') || 'list')
   const [sortBy, setSortBy] = useState('name') // 'name' | 'size' | 'type'
   const [sortDir, setSortDir] = useState('asc') // 'asc' | 'desc'
+  const [filterAnchor, setFilterAnchor] = useState(null)
+  const [sortAnchor, setSortAnchor] = useState(null)
+  const [breadcrumbMaxItems, setBreadcrumbMaxItems] = useState(3)
   const dragCounter = useRef(0)
   const abortRef = useRef(null)
+  const breadcrumbContainerRef = useRef(null)
   const pathHistoryRef = useRef([currentPath])
   const historyIndexRef = useRef(0)
   const historyActionRef = useRef(null)
   const [canGoBack, setCanGoBack] = useState(false)
   const [canGoForward, setCanGoForward] = useState(false)
+  const filterDefinitions = useMemo(() => FILE_TYPE_FILTERS.filter(f => f.key !== 'all'), [])
+  const allFilterKeys = useMemo(() => filterDefinitions.map(f => f.key), [filterDefinitions])
+  const filterExtByKey = useMemo(
+    () => new Map(filterDefinitions.map(f => [f.key, f.exts || []])),
+    [filterDefinitions],
+  )
+  const filterLabelByKey = useMemo(
+    () => new Map(filterDefinitions.map(f => [f.key, f.label])),
+    [filterDefinitions],
+  )
 
   // Debounce: inputValue -> search (keeps typing instant, delays filtering)
   useEffect(() => {
@@ -174,6 +188,29 @@ export default function BrowsePage() {
     return () => { cancelled = true }
   }, [])
 
+  useEffect(() => {
+    const el = breadcrumbContainerRef.current
+    if (!el || !data?.breadcrumb) return
+
+    const updateBreadcrumbLayout = () => {
+      const width = el.clientWidth || 0
+      const totalChars = data.breadcrumb.reduce((acc, seg) => acc + (seg.name?.length || 0), 0)
+      const segments = data.breadcrumb.length
+      // Rough text+separator estimate good enough for responsive collapse decision.
+      const estimatedWidth = totalChars * 7 + segments * 42
+      setBreadcrumbMaxItems(estimatedWidth > width ? 3 : segments)
+    }
+
+    updateBreadcrumbLayout()
+    const observer = new ResizeObserver(updateBreadcrumbLayout)
+    observer.observe(el)
+    window.addEventListener('resize', updateBreadcrumbLayout)
+    return () => {
+      observer.disconnect()
+      window.removeEventListener('resize', updateBreadcrumbLayout)
+    }
+  }, [data?.breadcrumb])
+
   // Global search with debounce + AbortController
   useEffect(() => {
     if (searchMode !== 'global' || !search || search.length < 2) {
@@ -237,26 +274,28 @@ export default function BrowsePage() {
       return dirs
     }
 
+    const filterFilesByType = (files) => {
+      if (typeFilters.length === filterDefinitions.length) return files
+      if (typeFilters.length === 0) return []
+      const allowedExts = new Set(typeFilters.flatMap(key => filterExtByKey.get(key) || []))
+      return files.filter(f => allowedExts.has((f.ext || '').toLowerCase()))
+    }
+
     if (!search || searchMode === 'global') {
       setFilteredDirs(sortDirs(data.dirs))
-      const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
-      let files = filterExts
-        ? data.files.filter(f => filterExts.includes(f.ext?.toLowerCase()))
-        : data.files
-      setFilteredFiles(sortFiles(files))
+      setFilteredFiles(sortFiles(filterFilesByType(data.files)))
       return
     }
     const timer = setTimeout(() => {
       const q = search.toLowerCase()
       let dirs = data.dirs.filter(d => d.name.toLowerCase().includes(q))
       let files = data.files.filter(f => f.name.toLowerCase().includes(q))
-      const filterExts = FILE_TYPE_FILTERS.find(f => f.key === typeFilter)?.exts
-      if (filterExts) files = files.filter(f => filterExts.includes(f.ext?.toLowerCase()))
+      files = filterFilesByType(files)
       setFilteredDirs(sortDirs(dirs))
       setFilteredFiles(sortFiles(files))
     }, 150)
     return () => clearTimeout(timer)
-  }, [data, search, searchMode, typeFilter, sortBy, sortDir])
+  }, [data, search, searchMode, typeFilters, sortBy, sortDir, filterExtByKey, filterDefinitions.length])
 
   // Reset visible count when search changes
   useEffect(() => { setVisibleCount(20) }, [search, searchMode])
@@ -270,6 +309,18 @@ export default function BrowsePage() {
     () => currentFolderRels.reduce((acc, rel) => acc + (selected.has(rel) ? 1 : 0), 0),
     [currentFolderRels, selected],
   )
+  const hasActiveTypeFilter = typeFilters.length !== filterDefinitions.length
+  const hasActiveSearchOrFilter = hasActiveTypeFilter || (searchMode === 'local' && search.trim().length > 0)
+  const emptyStateText = hasActiveSearchOrFilter
+    ? 'Nie ma plików spełniających kryteria wyszukiwania'
+    : 'Folder jest pusty'
+  const activeFilterLabel = useMemo(() => {
+    if (typeFilters.length === filterDefinitions.length) return 'Wszystkie'
+    if (typeFilters.length === 0) return 'Brak'
+    if (typeFilters.length === 1) return filterLabelByKey.get(typeFilters[0]) || 'Wszystkie'
+    return `${typeFilters.length} typy`
+  }, [typeFilters, filterLabelByKey, filterDefinitions.length])
+  const sortByLabel = sortBy === 'size' ? 'Rozmiar' : sortBy === 'type' ? 'Typ' : 'Nazwa'
 
   const handleNavigate = (path) => {
     const encodedPath = path ? path.split('/').map(encodeURIComponent).join('/') : ''
@@ -467,6 +518,44 @@ export default function BrowsePage() {
     handleNavigate(dirPath)
   }
 
+  const handleFilterClick = (e) => {
+    setFilterAnchor(e.currentTarget)
+  }
+
+  const handleFilterClose = () => {
+    setFilterAnchor(null)
+  }
+
+  const handleSortClick = (e) => {
+    setSortAnchor(e.currentTarget)
+  }
+
+  const handleSortClose = () => {
+    setSortAnchor(null)
+  }
+
+  const handleFilterSelect = (key) => {
+    const allChecked = typeFilters.length === filterDefinitions.length
+    if (key === 'all') {
+      setTypeFilters(allChecked ? [] : allFilterKeys)
+      return
+    }
+    setTypeFilters(prev => {
+      if (prev.includes(key)) return prev.filter(k => k !== key)
+      return [...prev, key]
+    })
+  }
+
+  const handleSortBySelect = (key) => {
+    setSortBy(key)
+    handleSortClose()
+  }
+
+  const handleSortDirSelect = (dir) => {
+    setSortDir(dir)
+    handleSortClose()
+  }
+
   // Drag & drop on page
   const handlePageDragEnter = (e) => {
     e.preventDefault()
@@ -551,59 +640,6 @@ export default function BrowsePage() {
         </Button>
       </Stack>
 
-      <Stack direction="row" spacing={0.5} sx={{ mb: 1 }}>
-        <Tooltip title="Wstecz">
-          <span>
-            <IconButton size="small" onClick={handleHistoryBack} disabled={!canGoBack}>
-              <ArrowBack fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title="Dalej">
-          <span>
-            <IconButton size="small" onClick={handleHistoryForward} disabled={!canGoForward}>
-              <ArrowForward fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-        <Tooltip title="Katalog wyżej">
-          <span>
-            <IconButton size="small" onClick={handleNavigateUp} disabled={!currentPath}>
-              <ArrowUpward fontSize="small" />
-            </IconButton>
-          </span>
-        </Tooltip>
-      </Stack>
-
-      {/* Breadcrumb with autocomplete */}
-      <Breadcrumbs sx={{ mb: 2 }}>
-        {data.breadcrumb.map((bc, i) => (
-          i === data.breadcrumb.length - 1 ? (
-            <Typography key={i} color="text.primary" fontWeight={500}>
-              {bc.name}
-            </Typography>
-          ) : (
-            <Box key={i} sx={{ display: 'flex', alignItems: 'center' }}>
-              <Link
-                component="button"
-                underline="hover"
-                onClick={() => handleNavigate(bc.path)}
-                sx={{ cursor: 'pointer' }}
-              >
-                {i === 0 ? '🏠 ' : ''}{bc.name}
-              </Link>
-              <IconButton
-                size="small"
-                onClick={(e) => handleBreadcrumbClick(e, bc)}
-                sx={{ ml: 0.2, p: 0.2 }}
-              >
-                <ExpandMore sx={{ fontSize: 16 }} />
-              </IconButton>
-            </Box>
-          )
-        ))}
-      </Breadcrumbs>
-
       {/* Breadcrumb subdirectory menu */}
       <Menu
         anchorEl={breadcrumbAnchor}
@@ -667,32 +703,6 @@ export default function BrowsePage() {
         </Typography>
       )}
 
-      {/* File type filter */}
-      <Box
-        sx={{
-          mb: 1,
-          overflowX: 'auto',
-          overflowY: 'hidden',
-          WebkitOverflowScrolling: 'touch',
-          '&::-webkit-scrollbar': { height: 6 },
-          '&::-webkit-scrollbar-thumb': { bgcolor: 'action.disabled', borderRadius: 3 },
-        }}
-      >
-        <Stack direction="row" spacing={0.5} sx={{ flexWrap: 'nowrap', minWidth: 'max-content', pb: 0.5 }}>
-          {FILE_TYPE_FILTERS.map(ft => (
-            <Chip
-              key={ft.key}
-              label={ft.label}
-              size="small"
-              variant={typeFilter === ft.key ? 'filled' : 'outlined'}
-              color={typeFilter === ft.key ? 'primary' : 'default'}
-              onClick={() => setTypeFilter(ft.key === typeFilter ? 'all' : ft.key)}
-              sx={{ cursor: 'pointer', flexShrink: 0 }}
-            />
-          ))}
-        </Stack>
-      </Box>
-
       {/* Global search results */}
       {searchMode === 'global' && search.length >= 2 && (
         <Paper variant="outlined" sx={{ mb: 3, maxHeight: 500, display: 'flex', flexDirection: 'column' }}>
@@ -754,26 +764,24 @@ export default function BrowsePage() {
           <FolderIcon sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.dirs.length} folderów, <InsertDriveFile sx={{ fontSize: 16, verticalAlign: 'text-bottom', mr: 0.5 }} />{data.files.length} plików
         </Typography>
         <Stack direction="row" gap={1} flexWrap="wrap" alignItems="center">
-          {/* Sort controls */}
-          <FormControl size="small" sx={{ minWidth: 100 }}>
-            <Select
-              value={sortBy}
-              onChange={(e) => setSortBy(e.target.value)}
-              variant="outlined"
-              sx={{ height: 32, fontSize: '0.8rem' }}
+          <Tooltip title={activeFilterLabel === 'Wszystkie' ? 'Filtry' : `Filtry: ${activeFilterLabel}`}>
+            <IconButton
+              size="small"
+              onClick={handleFilterClick}
+              color={hasActiveTypeFilter ? 'primary' : 'default'}
             >
-              <MenuItem value="name">Nazwa</MenuItem>
-              <MenuItem value="size">Rozmiar</MenuItem>
-              <MenuItem value="type">Typ</MenuItem>
-            </Select>
-          </FormControl>
-          <IconButton
-            size="small"
-            onClick={() => setSortDir(d => d === 'asc' ? 'desc' : 'asc')}
-            title={sortDir === 'asc' ? 'Rosnąco' : 'Malejąco'}
-          >
-            {sortDir === 'asc' ? <ArrowUpwardIcon fontSize="small" /> : <ArrowDownwardIcon fontSize="small" />}
-          </IconButton>
+              <FilterAltOutlined fontSize="small" />
+            </IconButton>
+          </Tooltip>
+          <Tooltip title={`Sortowanie: ${sortByLabel} (${sortDir === 'asc' ? 'rosnąco' : 'malejąco'})`}>
+            <IconButton
+              size="small"
+              onClick={handleSortClick}
+              color={sortBy !== 'name' || sortDir !== 'asc' ? 'primary' : 'default'}
+            >
+              <SwapVert fontSize="small" />
+            </IconButton>
+          </Tooltip>
 
           <ToggleButtonGroup value={viewMode} exclusive onChange={handleViewModeChange} size="small">
             <ToggleButton value="list"><Tooltip title="Widok listy"><ViewList /></Tooltip></ToggleButton>
@@ -787,10 +795,159 @@ export default function BrowsePage() {
         </Stack>
       </Stack>
 
+      <Menu
+        anchorEl={filterAnchor}
+        open={Boolean(filterAnchor)}
+        onClose={handleFilterClose}
+        disableScrollLock
+        PaperProps={{ sx: { minWidth: 220 } }}
+      >
+        {(() => {
+          const allChecked = typeFilters.length === filterDefinitions.length
+          return (
+            <>
+        {FILE_TYPE_FILTERS.map(ft => (
+          <MenuItem
+            key={ft.key}
+            selected={ft.key === 'all' ? allChecked : typeFilters.includes(ft.key)}
+            onClick={() => handleFilterSelect(ft.key)}
+          >
+            <Checkbox
+              size="small"
+              checked={ft.key === 'all' ? allChecked : typeFilters.includes(ft.key)}
+              sx={{ mr: 1 }}
+            />
+            {ft.label}
+          </MenuItem>
+        ))}
+            </>
+          )
+        })()}
+      </Menu>
+
+      <Menu
+        anchorEl={sortAnchor}
+        open={Boolean(sortAnchor)}
+        onClose={handleSortClose}
+        disableScrollLock
+        PaperProps={{ sx: { minWidth: 220 } }}
+      >
+        <MenuItem selected={sortBy === 'name'} onClick={() => handleSortBySelect('name')}>
+          <Checkbox size="small" checked={sortBy === 'name'} sx={{ mr: 1 }} />
+          Nazwa
+        </MenuItem>
+        <MenuItem selected={sortBy === 'size'} onClick={() => handleSortBySelect('size')}>
+          <Checkbox size="small" checked={sortBy === 'size'} sx={{ mr: 1 }} />
+          Rozmiar
+        </MenuItem>
+        <MenuItem selected={sortBy === 'type'} onClick={() => handleSortBySelect('type')}>
+          <Checkbox size="small" checked={sortBy === 'type'} sx={{ mr: 1 }} />
+          Typ
+        </MenuItem>
+        <Divider />
+        <MenuItem selected={sortDir === 'asc'} onClick={() => handleSortDirSelect('asc')}>
+          <Checkbox size="small" checked={sortDir === 'asc'} sx={{ mr: 1 }} />
+          Rosnąco
+        </MenuItem>
+        <MenuItem selected={sortDir === 'desc'} onClick={() => handleSortDirSelect('desc')}>
+          <Checkbox size="small" checked={sortDir === 'desc'} sx={{ mr: 1 }} />
+          Malejąco
+        </MenuItem>
+      </Menu>
+
       {/* Pending section (admin only) */}
       {data.isAdmin && (
         <PendingSection path={currentPath} onRefresh={() => loadData(true)} />
       )}
+
+      {/* Navigation arrows + breadcrumb inline */}
+      <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1, minWidth: 0 }}>
+        <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
+          <Tooltip title="Wstecz">
+            <span>
+              <IconButton size="small" onClick={handleHistoryBack} disabled={!canGoBack}>
+                <ArrowBack fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Dalej">
+            <span>
+              <IconButton size="small" onClick={handleHistoryForward} disabled={!canGoForward}>
+                <ArrowForward fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+          <Tooltip title="Katalog wyżej">
+            <span>
+              <IconButton size="small" onClick={handleNavigateUp} disabled={!currentPath}>
+                <ArrowUpward fontSize="small" />
+              </IconButton>
+            </span>
+          </Tooltip>
+        </Stack>
+        <Box ref={breadcrumbContainerRef} sx={{ minWidth: 0, flex: 1, overflow: 'hidden' }}>
+          <Breadcrumbs
+            maxItems={breadcrumbMaxItems}
+            itemsBeforeCollapse={1}
+            itemsAfterCollapse={1}
+            sx={{
+              whiteSpace: 'nowrap',
+              '& .MuiBreadcrumbs-ol': { flexWrap: 'nowrap' },
+            }}
+          >
+            {data.breadcrumb.map((bc, i) => (
+              i === data.breadcrumb.length - 1 ? (
+                <Typography
+                  key={i}
+                  color="text.primary"
+                  fontWeight={500}
+                  noWrap
+                  title={bc.name}
+                  sx={{ maxWidth: { xs: 120, sm: 240 } }}
+                >
+                  {bc.name}
+                </Typography>
+              ) : (
+                <Box key={i} sx={{ display: 'flex', alignItems: 'center', minWidth: 0 }}>
+                  <Link
+                    component="button"
+                    underline="hover"
+                    onClick={() => handleNavigate(bc.path)}
+                    sx={{
+                      cursor: 'pointer',
+                      display: 'inline-flex',
+                      alignItems: 'center',
+                      minWidth: 0,
+                      maxWidth: { xs: 80, sm: 160 },
+                    }}
+                    title={bc.name}
+                  >
+                    {i === 0 ? <Home sx={{ fontSize: 18 }} /> : (
+                      <Box
+                        component="span"
+                        sx={{
+                          overflow: 'hidden',
+                          textOverflow: 'ellipsis',
+                          whiteSpace: 'nowrap',
+                        }}
+                      >
+                        {bc.name}
+                      </Box>
+                    )}
+                  </Link>
+                  <IconButton
+                    size="small"
+                    onClick={(e) => handleBreadcrumbClick(e, bc)}
+                    sx={{ ml: 0.2, p: 0.2 }}
+                  >
+                    <ExpandMore sx={{ fontSize: 16 }} />
+                  </IconButton>
+                </Box>
+              )
+            ))}
+          </Breadcrumbs>
+        </Box>
+      </Stack>
 
       {/* Current folder header with actions */}
       <Paper variant="outlined" sx={{ mb: 1 }}>
@@ -913,7 +1070,7 @@ export default function BrowsePage() {
             {deferredDirs.length === 0 && deferredFiles.length === 0 && (
               <ListItem>
                 <ListItemText
-                  primary="Folder jest pusty"
+                  primary={emptyStateText}
                   sx={{ textAlign: 'center', color: 'text.secondary' }}
                 />
               </ListItem>
@@ -956,7 +1113,7 @@ export default function BrowsePage() {
           )}
           {deferredDirs.length === 0 && deferredFiles.length === 0 && (
             <Typography color="text.secondary" sx={{ textAlign: 'center', py: 4 }}>
-              Folder jest pusty
+              {emptyStateText}
             </Typography>
           )}
         </Box>
