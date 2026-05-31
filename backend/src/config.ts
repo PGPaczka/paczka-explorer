@@ -17,6 +17,11 @@ export const METADATA_DB_PATH = path.resolve(
   process.env.METADATA_DB_PATH || 'cursor-metadata-generator/metadata.sqlite'
 );
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
+const SERVICE_TOKENS_RAW = process.env.SERVICE_TOKENS || process.env.SERVICE_TOKEN || '';
+export const SERVICE_TOKENS = SERVICE_TOKENS_RAW
+  .split(',')
+  .map((token) => token.trim())
+  .filter(Boolean);
 export const MAX_UPLOAD_SIZE = parseInt(process.env.MAX_UPLOAD_MB || '10') * 1024 * 1024;
 export const PORT = parseInt(process.env.PORT || '8081');
 export const GITHUB_PR_URL = process.env.GITHUB_PR_URL || 'https://github.com/dommilosz/Paczka-eti-pg/pulls';

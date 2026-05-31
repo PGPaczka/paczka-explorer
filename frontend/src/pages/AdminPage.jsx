@@ -16,7 +16,8 @@ import Assignment from '@mui/icons-material/Assignment'
 import Language from '@mui/icons-material/Language'
 import CalendarToday from '@mui/icons-material/CalendarToday'
 import Autorenew from '@mui/icons-material/Autorenew'
-import { fetchPendingAll, fetchAuthStatus, logout, adminApprove, adminReject, adminApproveFile, adminRejectFile, adminReindex } from '../api'
+import Sync from '@mui/icons-material/Sync'
+import { fetchPendingAll, fetchAuthStatus, logout, adminApprove, adminReject, adminApproveFile, adminRejectFile, adminReindex, adminGitPull } from '../api'
 import PreviewModal from '../components/PreviewModal'
 
 export default function AdminPage() {
@@ -27,6 +28,7 @@ export default function AdminPage() {
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
   const [reindexing, setReindexing] = useState(false)
+  const [syncingGit, setSyncingGit] = useState(false)
   const [reindexAlert, setReindexAlert] = useState(null)
 
   useEffect(() => {
@@ -108,6 +110,29 @@ export default function AdminPage() {
     }
   }
 
+  const handleGitPull = async () => {
+    setSyncingGit(true)
+    setReindexAlert(null)
+    try {
+      const result = await adminGitPull()
+      if (result.filesRootGit) {
+        setFilesRootGit(result.filesRootGit)
+      }
+      setReindexAlert({
+        severity: 'success',
+        message: `Synchronizacja git zakończona. ${result.output || ''}`.trim(),
+      })
+      loadPending()
+    } catch (err) {
+      setReindexAlert({
+        severity: 'error',
+        message: `Błąd synchronizacji git: ${err.message}`,
+      })
+    } finally {
+      setSyncingGit(false)
+    }
+  }
+
   const formatSize = (b) => {
     if (b < 1024) return `${b} B`
     if (b < 1024 * 1024) return `${(b / 1024).toFixed(1)} KB`
@@ -138,10 +163,20 @@ export default function AdminPage() {
         <Stack direction={{ xs: 'column', sm: 'row' }} gap={1}>
           <Button
             variant="contained"
+            color="primary"
+            startIcon={<Sync />}
+            onClick={handleGitPull}
+            disabled={syncingGit || reindexing}
+            fullWidth
+          >
+            {syncingGit ? 'Synchronizacja...' : 'Synchronizuj z gitem'}
+          </Button>
+          <Button
+            variant="contained"
             color="secondary"
             startIcon={<Autorenew />}
             onClick={handleReindex}
-            disabled={reindexing}
+            disabled={reindexing || syncingGit}
             fullWidth
           >
             {reindexing ? 'Reindexowanie...' : 'Reindex'}

@@ -4,7 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { FILES_ROOT, PENDING_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '../config';
-import { checkAdmin, safePath, loadPending, savePending, getGitRepoStatus } from '../helpers';
+import { checkAdmin, safePath, loadPending, savePending, getGitRepoStatus, gitPullRepo } from '../helpers';
 import { rateLimitUpload } from '../rateLimit';
 import { notifyNewUpload } from '../discord';
 import { rebuildIndex } from '../search';
@@ -38,6 +38,23 @@ router.post('/api/admin/reindex', (_req, res) => {
   } catch (err: any) {
     res.status(500).json({ detail: `Błąd reindexu: ${err.message}` });
   }
+});
+
+router.post('/api/admin/git-pull', (_req, res) => {
+  if (!checkAdmin(_req)) return res.status(403).json({ detail: 'Forbidden' });
+  const result = gitPullRepo();
+  if (!result.success) {
+    return res.status(500).json({
+      detail: 'Nie udalo sie wykonac git pull.',
+      output: result.output,
+      filesRootGit: result.status,
+    });
+  }
+  return res.json({
+    success: true,
+    output: result.output,
+    filesRootGit: result.status,
+  });
 });
 
 // ============ UPLOAD ============

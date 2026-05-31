@@ -3,7 +3,7 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { execFileSync } from 'child_process';
 import { Request } from 'express';
-import { FILES_ROOT, PENDING_META, ADMIN_PASSWORD } from './config';
+import { FILES_ROOT, PENDING_META, ADMIN_PASSWORD, SERVICE_TOKENS } from './config';
 import previewableExtensions from './previewable-extensions.json';
 
 // ============ PENDING ============
@@ -108,9 +108,27 @@ export function hashPw(pw: string): string {
   return crypto.createHash('sha256').update(pw).digest('hex');
 }
 
+function getHeaderValue(header: string | string[] | undefined): string {
+  if (Array.isArray(header)) return header[0] || '';
+  return header || '';
+}
+
+function getServiceTokenFromRequest(req: Request): string {
+  const authorization = getHeaderValue(req.headers.authorization).trim();
+  if (authorization.toLowerCase().startsWith('bearer ')) {
+    return authorization.slice(7).trim();
+  }
+  return getHeaderValue(req.headers['x-service-token']).trim();
+}
+
 export function checkAdmin(req: Request): boolean {
-  const token = req.cookies?.admin_token || '';
-  return token === hashPw(ADMIN_PASSWORD);
+  const cookieToken = req.cookies?.admin_token || '';
+  if (cookieToken === hashPw(ADMIN_PASSWORD)) return true;
+
+  if (!SERVICE_TOKENS.length) return false;
+  const serviceToken = getServiceTokenFromRequest(req);
+  if (!serviceToken) return false;
+  return SERVICE_TOKENS.includes(serviceToken);
 }
 
 export interface GitCommitInfo {
@@ -127,8 +145,20 @@ export interface GitRepoStatus extends GitCommitInfo {
   fetchedAt: string;
 }
 
+export interface GitPullResult {
+  success: boolean;
+  output: string;
+  status: GitRepoStatus | null;
+}
+
 const GIT_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
 let _gitRepoStatusCache: { repoPath: string; expiresAt: number; value: GitRepoStatus | null } | null = null;
+
+export function invalidateGitRepoStatusCache(repoPath = FILES_ROOT): void {
+  if (_gitRepoStatusCache && _gitRepoStatusCache.repoPath === repoPath) {
+    _gitRepoStatusCache = null;
+  }
+}
 
 export function getGitCommitInfo(repoPath = FILES_ROOT): GitCommitInfo | null {
   try {
@@ -223,6 +253,45 @@ export function getGitRepoStatus(repoPath = FILES_ROOT): GitRepoStatus | null {
     value,
   };
   return value;
+}
+
+export function gitPullRepo(repoPath = FILES_ROOT): GitPullResult {
+  try {
+    const insideWorkTree = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: repoPath }).toString().trim();
+    if (insideWorkTree !== 'true') {
+      return {
+        success: false,
+        output: 'Podany katalog nie jest repozytorium git.',
+        status: null,
+      };
+    }
+
+    const pullOutput = execFileSync('git', ['pull', '--ff-only'], {
+      cwd: repoPath,
+      stdio: 'pipe',
+      timeout: 120000,
+    }).toString().trim();
+
+    invalidateGitRepoStatusCache(repoPath);
+    return {
+      success: true,
+      output: pullOutput || 'git pull zakonczony bez dodatkowego outputu.',
+      status: getGitRepoStatus(repoPath),
+    };
+  } catch (error: any) {
+    const stdout = error?.stdout ? String(error.stdout) : '';
+    const stderr = error?.stderr ? String(error.stderr) : '';
+    const message = [stdout, stderr, error?.message || 'git pull zakonczyl sie bledem.']
+      .filter(Boolean)
+      .join('\n')
+      .trim();
+    invalidateGitRepoStatusCache(repoPath);
+    return {
+      success: false,
+      output: message || 'git pull zakonczyl sie bledem.',
+      status: getGitRepoStatus(repoPath),
+    };
+  }
 }
 
 // ============ RECURSIVE DIR ============

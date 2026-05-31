@@ -181,6 +181,18 @@ export async function adminReindex() {
   return res.json()
 }
 
+export async function adminGitPull() {
+  const res = await fetch(`${API_BASE}/api/admin/git-pull`, {
+    ...fetchOpts,
+    method: 'POST',
+  })
+  if (!res.ok) {
+    const err = await res.json().catch(() => ({}))
+    throw new Error(err.output || err.detail || `HTTP ${res.status}`)
+  }
+  return res.json()
+}
+
 export async function downloadSelected(files) {
   const res = await fetch(`${API_BASE}/api/download-selected`, {
     ...fetchOpts,
