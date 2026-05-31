@@ -9,13 +9,15 @@ export async function searchFiles(query, signal) {
 }
 
 export async function fetchBrowse(path = '') {
-  const res = await fetch(`${API_BASE}/api/browse/${path}`, fetchOpts)
+  const encodedPath = encodePath(path)
+  const res = await fetch(`${API_BASE}/api/browse/${encodedPath}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
 
 export async function fetchPending(path = '') {
-  const res = await fetch(`${API_BASE}/api/pending/${path}`, fetchOpts)
+  const encodedPath = encodePath(path)
+  const res = await fetch(`${API_BASE}/api/pending/${encodedPath}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }
@@ -226,7 +228,8 @@ export function getAdminViewUrl(fileId, filename) {
 }
 
 export async function fetchBrowseZip(zipPath) {
-  const res = await fetch(`${API_BASE}/api/browse-zip/${zipPath}`, fetchOpts)
+  const encodedPath = encodePath(zipPath)
+  const res = await fetch(`${API_BASE}/api/browse-zip/${encodedPath}`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
   return res.json()
 }

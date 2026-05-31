@@ -206,7 +206,8 @@ export default function BrowsePage() {
   useEffect(() => { setVisibleCount(20) }, [search, searchMode])
 
   const handleNavigate = (path) => {
-    navigate(path ? `/browse/${path}` : '/browse')
+    const encodedPath = path ? path.split('/').map(encodeURIComponent).join('/') : ''
+    navigate(encodedPath ? `/browse/${encodedPath}` : '/browse')
   }
 
   const handleToggleSelect = (rel) => {
@@ -571,7 +572,7 @@ export default function BrowsePage() {
                     onRename={handleRename}
                     onDelete={handleDeleteFile}
                     onCopyLink={handleCopyLink}
-                    onNavigatePath={(p) => navigate(p ? `/browse/${p}` : '/browse')}
+                  onNavigatePath={handleNavigate}
                     isAdmin={data?.isAdmin}
                     showPath
                   />
