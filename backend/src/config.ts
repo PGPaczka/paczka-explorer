@@ -10,6 +10,12 @@ export const PENDING_DIR = path.resolve(PROJECT_ROOT, process.env.PENDING_DIR ||
 export const PENDING_META = path.join(PENDING_DIR, 'pending_meta.json');
 export const INDEX_FILE = path.resolve(PROJECT_ROOT, process.env.INDEX_FILE || 'INDEKS.csv');
 export const INDEX_DIR_FILE = path.resolve(PROJECT_ROOT, process.env.INDEX_DIR_FILE || 'INDEKS_DIR.csv');
+export const METADATA_DB_PATH_IS_EXPLICIT =
+  typeof process.env.METADATA_DB_PATH === 'string' && process.env.METADATA_DB_PATH.trim().length > 0;
+export const METADATA_DB_PATH = path.resolve(
+  PROJECT_ROOT,
+  process.env.METADATA_DB_PATH || 'cursor-metadata-generator/metadata.sqlite'
+);
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 export const MAX_UPLOAD_SIZE = parseInt(process.env.MAX_UPLOAD_MB || '10') * 1024 * 1024;
 export const PORT = parseInt(process.env.PORT || '8081');

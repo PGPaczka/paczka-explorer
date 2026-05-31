@@ -1,6 +1,7 @@
 import { memo } from 'react'
 import {
   ListItem, ListItemIcon, ListItemText, Checkbox, IconButton, Link, Tooltip, Chip,
+  Typography,
 } from '@mui/material'
 import Download from '@mui/icons-material/Download'
 import DeleteIcon from '@mui/icons-material/Delete'
@@ -121,7 +122,13 @@ const FileEntry = memo(function FileEntry({
             {metadata?.short_summary && (
               <>
                 <br />
-                <span style={{ color: 'rgba(0,0,0,0.6)' }}>{metadata.short_summary}</span>
+                <Typography
+                  variant="body2"
+                  color="text.secondary"
+                  sx={{ mt: 0.5, overflowWrap: 'anywhere', wordBreak: 'break-word' }}
+                >
+                  {metadata.short_summary}
+                </Typography>
               </>
             )}
           </span>

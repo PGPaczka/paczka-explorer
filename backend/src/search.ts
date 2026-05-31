@@ -1,8 +1,9 @@
 import fs from 'fs';
 import path from 'path';
-import { FILES_ROOT, INDEX_FILE } from './config';
-import { formatSize, isPreviewable, getPreviewType, isMetadataFileName, readSidecarMetadata } from './helpers';
+import { INDEX_FILE } from './config';
+import { formatSize, isPreviewable, getPreviewType, isMetadataFileName } from './helpers';
 import { rebuildIndexFiles } from './indexer';
+import { readDbMetadataByRelPath } from './metadataDb';
 
 // ============ IN-MEMORY INDEX ============
 
@@ -83,7 +84,7 @@ export function loadIndex(force = false): void {
     const filename = path.basename(relPath);
     const ext = path.extname(filename).toLowerCase();
     const size = parseInt(sizeStr) || 0;
-    const metadata = readSidecarMetadata(path.join(FILES_ROOT, relNorm));
+    const metadata = readDbMetadataByRelPath(relNorm);
     const metadataSearchable = buildMetadataSearchable(metadata);
 
     const searchable = `${relPath} ${semester} ${subject} ${desc} ${filename} ${metadataSearchable}`.toLowerCase();

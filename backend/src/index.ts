@@ -15,6 +15,7 @@ import zipBrowseRoutes from './routes/zipBrowse';
 import adminRoutes from './routes/admin';
 import { loadIndex, rebuildIndex } from './search';
 import { rateLimitGeneral } from './rateLimit';
+import { logMetadataDbStartupStatus } from './metadataDb';
 
 // Ensure pending dir exists
 fs.mkdirSync(PENDING_DIR, { recursive: true });
@@ -28,6 +29,7 @@ if (!fs.existsSync(INDEX_FILE) || !fs.existsSync(INDEX_DIR_FILE)) {
 } else {
   loadIndex();
 }
+logMetadataDbStartupStatus();
 
 const app = express();
 
