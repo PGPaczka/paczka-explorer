@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import { FILES_ROOT, INDEX_DIR_FILE, INDEX_FILE } from './config';
+import { isMetadataFileName } from './helpers';
 
 // ─── Description / Category mapping ───────────────────────────────────────────
 const CATEGORY_DESC: Record<string, string> = {
@@ -78,6 +79,7 @@ function regenerateRaw(): { allFiles: string[]; dirCount: number } {
       if (entry.isDirectory()) {
         walk(fullPath);
       } else if (entry.isFile()) {
+        if (isMetadataFileName(entry.name)) continue;
         allFiles.push(fullPath);
         fileCount++;
       }

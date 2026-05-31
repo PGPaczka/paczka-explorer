@@ -1,7 +1,7 @@
 import fs from 'fs';
 import path from 'path';
-import { INDEX_FILE } from './config';
-import { formatSize, isPreviewable, getPreviewType } from './helpers';
+import { FILES_ROOT, INDEX_FILE } from './config';
+import { formatSize, isPreviewable, getPreviewType, isMetadataFileName, readSidecarMetadata } from './helpers';
 import { rebuildIndexFiles } from './indexer';
 
 // ============ IN-MEMORY INDEX ============
@@ -19,6 +19,7 @@ interface IndexEntry {
   previewType: string | null;
   description: string;
   dirPath: string;
+  metadata: any | null;
   /** Pre-computed lowercase searchable string for fast matching */
   searchable: string;
 }
@@ -26,6 +27,27 @@ interface IndexEntry {
 let _entries: IndexEntry[] = [];
 let _descriptions: Record<string, string> = {};
 let _loaded = false;
+
+const METADATA_INDEX_KEYS = [
+  "source_file",
+  "content_kind",
+  "content_kind_extended",
+  "source_hash",
+  "source_hash_short",
+  "source_hash_algorithm",
+  "source_size_bytes",
+  "generated_at",
+  "short_summary",
+] as const;
+
+function buildMetadataSearchable(metadata: any | null): string {
+  if (!metadata || typeof metadata !== "object") return "";
+  const values = METADATA_INDEX_KEYS.map((key) => {
+    const value = metadata[key];
+    return value === undefined || value === null ? "" : String(value);
+  });
+  return values.join(" ").trim();
+}
 
 /**
  * Load the entire index CSV into memory.
@@ -51,6 +73,7 @@ export function loadIndex(force = false): void {
     if (parts.length < 5) continue;
 
     const relPath = parts[0].trim();
+    if (isMetadataFileName(path.basename(relPath))) continue;
     const semester = parts[1].trim();
     const subject = parts[2].trim();
     const sizeStr = parts[3].trim();
@@ -60,8 +83,10 @@ export function loadIndex(force = false): void {
     const filename = path.basename(relPath);
     const ext = path.extname(filename).toLowerCase();
     const size = parseInt(sizeStr) || 0;
+    const metadata = readSidecarMetadata(path.join(FILES_ROOT, relNorm));
+    const metadataSearchable = buildMetadataSearchable(metadata);
 
-    const searchable = `${relPath} ${semester} ${subject} ${desc} ${filename}`.toLowerCase();
+    const searchable = `${relPath} ${semester} ${subject} ${desc} ${filename} ${metadataSearchable}`.toLowerCase();
 
     if (desc) _descriptions[relNorm] = desc;
 
@@ -78,6 +103,7 @@ export function loadIndex(force = false): void {
       previewType: getPreviewType(ext),
       description: desc,
       dirPath: relNorm.split('/').slice(0, -1).join('/'),
+      metadata,
       searchable,
     });
   }
@@ -171,6 +197,7 @@ export function searchIndex(query: string): any[] {
         semester: entry.semester,
         subject: entry.subject,
         path: entry.dirPath,
+        metadata: entry.metadata,
       });
     }
   }

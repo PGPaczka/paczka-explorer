@@ -2,7 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { FILES_ROOT, GITHUB_PR_URL } from '../config';
-import { safePath, formatSize, isPreviewable, getPreviewType, countFiles, checkAdmin } from '../helpers';
+import { safePath, formatSize, isPreviewable, getPreviewType, countFiles, checkAdmin, isMetadataFileName, readSidecarMetadata } from '../helpers';
 import { getDescription } from '../search';
 
 function detectLinkService(url: string): string {
@@ -43,6 +43,7 @@ router.get('/api/browse/:path(*)?', (req, res) => {
       if (entry.isDirectory()) {
         dirs.push({ name: entry.name, rel, fileCount: countFiles(full) });
       } else {
+        if (isMetadataFileName(entry.name)) continue;
         const ext = path.extname(entry.name).toLowerCase();
         const stat = fs.statSync(full);
         const previewType = getPreviewType(ext);
@@ -58,6 +59,7 @@ router.get('/api/browse/:path(*)?', (req, res) => {
           sizeFormatted: formatSize(stat.size),
           previewable: isPreviewable(ext), previewType,
           description: getDescription(rel),
+          metadata: readSidecarMetadata(full),
         };
 
         // For link files, parse URL and detect service

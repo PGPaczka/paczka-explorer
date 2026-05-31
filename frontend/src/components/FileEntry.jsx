@@ -34,6 +34,7 @@ const FileEntry = memo(function FileEntry({
   isAdmin = false, showPath = false, extraActions, hideDownload = false, hideCheckbox = false,
 }) {
   const dlUrl = file.downloadUrl || getDownloadUrl(file.rel)
+  const metadata = file.metadata || null
 
   const handleCopyLink = () => {
     const url = `${window.location.origin}/view/${file.rel.split('/').map(encodeURIComponent).join('/')}`
@@ -102,11 +103,26 @@ const FileEntry = memo(function FileEntry({
             )}
             {file.sizeFormatted}
             {file.description && <> — {file.description}</>}
+            {metadata?.content_kind_extended && (
+              <Chip
+                label={metadata.content_kind_extended}
+                size="small"
+                color="primary"
+                variant="outlined"
+                sx={{ ml: 1, height: 18, fontSize: '0.7rem' }}
+              />
+            )}
             {showPath && file.semester && file.semester !== 'Ogólne' && (
               <Chip label={file.semester} size="small" sx={{ ml: 1, height: 18, fontSize: '0.7rem' }} />
             )}
             {showPath && file.subject && file.subject !== 'Ogólne' && (
               <Chip label={file.subject} size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: '0.7rem' }} />
+            )}
+            {metadata?.short_summary && (
+              <>
+                <br />
+                <span style={{ color: 'rgba(0,0,0,0.6)' }}>{metadata.short_summary}</span>
+              </>
             )}
           </span>
         }

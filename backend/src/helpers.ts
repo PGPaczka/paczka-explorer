@@ -47,6 +47,53 @@ export function getPreviewType(ext: string): string | null {
   return PREVIEWABLE_TYPES[ext] || null;
 }
 
+// ============ METADATA FILES ============
+
+const METADATA_FILE_RE = /\.[a-f0-9]{6,64}\.metadata\.json$/i;
+const _metadataCache: Map<string, { expires: number; value: any | null }> = new Map();
+const METADATA_CACHE_TTL_MS = 30_000;
+
+export function isMetadataFileName(name: string): boolean {
+  return METADATA_FILE_RE.test(name);
+}
+
+export function getSidecarMetadataPath(filePath: string): string | null {
+  const dir = path.dirname(filePath);
+  const basename = path.basename(filePath);
+  let entries: string[];
+  try {
+    entries = fs.readdirSync(dir);
+  } catch {
+    return null;
+  }
+  for (const name of entries) {
+    if (name.startsWith(`${basename}.`) && METADATA_FILE_RE.test(name)) {
+      return path.join(dir, name);
+    }
+  }
+  return null;
+}
+
+export function readSidecarMetadata(filePath: string): any | null {
+  const now = Date.now();
+  const cached = _metadataCache.get(filePath);
+  if (cached && now < cached.expires) return cached.value;
+
+  const metadataPath = getSidecarMetadataPath(filePath);
+  if (!metadataPath) {
+    _metadataCache.set(filePath, { expires: now + METADATA_CACHE_TTL_MS, value: null });
+    return null;
+  }
+  try {
+    const parsed = JSON.parse(fs.readFileSync(metadataPath, 'utf-8'));
+    _metadataCache.set(filePath, { expires: now + METADATA_CACHE_TTL_MS, value: parsed });
+    return parsed;
+  } catch {
+    _metadataCache.set(filePath, { expires: now + METADATA_CACHE_TTL_MS, value: null });
+    return null;
+  }
+}
+
 // ============ PATH SAFETY ============
 
 export function safePath(relPath: string): string | null {
@@ -184,6 +231,7 @@ export function readdirRecursive(dir: string): string[] {
   let results: string[] = [];
   for (const entry of fs.readdirSync(dir, { withFileTypes: true })) {
     if (entry.name.startsWith('.')) continue;
+    if (entry.isFile() && isMetadataFileName(entry.name)) continue;
     const full = path.join(dir, entry.name);
     if (entry.isDirectory()) {
       results = results.concat(readdirRecursive(full));

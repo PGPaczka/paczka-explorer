@@ -14,6 +14,7 @@ const FileGridEntry = memo(function FileGridEntry({
 }) {
   const dlUrl = !isDir ? (file.downloadUrl || getDownloadUrl(file.rel)) : null
   const isImage = !isDir && IMAGE_EXTS.has((file.ext || '').toLowerCase())
+  const metadata = !isDir ? (file.metadata || null) : null
 
   const handleCopyLink = (e) => {
     e.stopPropagation()
@@ -100,6 +101,11 @@ const FileGridEntry = memo(function FileGridEntry({
       <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem' }}>
         {isDir ? `${fileCount ?? 0} plików` : file.sizeFormatted}
       </Typography>
+      {!isDir && metadata?.content_kind_extended && (
+        <Typography variant="caption" color="primary" sx={{ fontSize: '0.65rem', mt: 0.3 }}>
+          {metadata.content_kind_extended}
+        </Typography>
+      )}
 
       {/* Actions */}
       {!isDir && (
