@@ -34,6 +34,12 @@ export async function fetchAuthStatus() {
   return res.json()
 }
 
+export async function fetchFilesRootGit() {
+  const res = await fetch(`${API_BASE}/api/files-root-git`, fetchOpts)
+  if (!res.ok) throw new Error(`HTTP ${res.status}`)
+  return res.json()
+}
+
 export async function login(password) {
   const res = await fetch(`${API_BASE}/api/login`, {
     ...fetchOpts,

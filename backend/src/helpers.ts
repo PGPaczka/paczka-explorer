@@ -1,6 +1,7 @@
 import path from 'path';
 import fs from 'fs';
 import crypto from 'crypto';
+import { execFileSync } from 'child_process';
 import { Request } from 'express';
 import { FILES_ROOT, PENDING_META, ADMIN_PASSWORD } from './config';
 import previewableExtensions from './previewable-extensions.json';
@@ -63,6 +64,118 @@ export function hashPw(pw: string): string {
 export function checkAdmin(req: Request): boolean {
   const token = req.cookies?.admin_token || '';
   return token === hashPw(ADMIN_PASSWORD);
+}
+
+export interface GitCommitInfo {
+  commit: string;
+  shortCommit: string;
+  branch: string | null;
+  committedAt: string;
+}
+
+export interface GitRepoStatus extends GitCommitInfo {
+  upstream: string | null;
+  ahead: number;
+  behind: number;
+  fetchedAt: string;
+}
+
+const GIT_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
+let _gitRepoStatusCache: { repoPath: string; expiresAt: number; value: GitRepoStatus | null } | null = null;
+
+export function getGitCommitInfo(repoPath = FILES_ROOT): GitCommitInfo | null {
+  try {
+    const insideWorkTree = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: repoPath }).toString().trim();
+    if (insideWorkTree !== 'true') return null;
+
+    const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoPath }).toString().trim();
+    const shortCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repoPath }).toString().trim();
+    const committedAt = execFileSync('git', ['show', '-s', '--format=%cI', 'HEAD'], { cwd: repoPath }).toString().trim();
+
+    let branch: string | null = null;
+    try {
+      const b = execFileSync('git', ['symbolic-ref', '--short', '-q', 'HEAD'], { cwd: repoPath }).toString().trim();
+      branch = b || null;
+    } catch {
+      branch = null;
+    }
+
+    return { commit, shortCommit, branch, committedAt };
+  } catch {
+    return null;
+  }
+}
+
+export function getGitRepoStatus(repoPath = FILES_ROOT): GitRepoStatus | null {
+  const now = Date.now();
+  if (_gitRepoStatusCache && _gitRepoStatusCache.repoPath === repoPath && now < _gitRepoStatusCache.expiresAt) {
+    return _gitRepoStatusCache.value;
+  }
+
+  let value: GitRepoStatus | null = null;
+  try {
+    const insideWorkTree = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: repoPath }).toString().trim();
+    if (insideWorkTree === 'true') {
+      // Refresh remote refs to compute accurate ahead/behind.
+      try {
+        execFileSync('git', ['fetch', '--all', '--prune'], { cwd: repoPath, stdio: 'pipe', timeout: 15000 });
+      } catch {}
+
+      const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoPath }).toString().trim();
+      const shortCommit = execFileSync('git', ['rev-parse', '--short', 'HEAD'], { cwd: repoPath }).toString().trim();
+      const committedAt = execFileSync('git', ['show', '-s', '--format=%cI', 'HEAD'], { cwd: repoPath }).toString().trim();
+
+      let branch: string | null = null;
+      try {
+        const b = execFileSync('git', ['symbolic-ref', '--short', '-q', 'HEAD'], { cwd: repoPath }).toString().trim();
+        branch = b || null;
+      } catch {
+        branch = null;
+      }
+
+      let upstream: string | null = null;
+      let ahead = 0;
+      let behind = 0;
+      try {
+        const up = execFileSync('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { cwd: repoPath }).toString().trim();
+        upstream = up || null;
+      } catch {
+        upstream = null;
+      }
+
+      if (upstream) {
+        try {
+          const counts = execFileSync('git', ['rev-list', '--left-right', '--count', 'HEAD...@{u}'], { cwd: repoPath }).toString().trim();
+          const [aheadRaw = '0', behindRaw = '0'] = counts.split(/\s+/);
+          ahead = parseInt(aheadRaw, 10) || 0;
+          behind = parseInt(behindRaw, 10) || 0;
+        } catch {
+          ahead = 0;
+          behind = 0;
+        }
+      }
+
+      value = {
+        commit,
+        shortCommit,
+        branch,
+        committedAt,
+        upstream,
+        ahead,
+        behind,
+        fetchedAt: new Date().toISOString(),
+      };
+    }
+  } catch {
+    value = null;
+  }
+
+  _gitRepoStatusCache = {
+    repoPath,
+    expiresAt: now + GIT_STATUS_CACHE_TTL_MS,
+    value,
+  };
+  return value;
 }
 
 // ============ RECURSIVE DIR ============

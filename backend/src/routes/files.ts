@@ -2,7 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { INDEX_FILE, INDEX_DIR_FILE } from '../config';
-import { safePath } from '../helpers';
+import { safePath, getGitCommitInfo } from '../helpers';
 
 const router = Router();
 
@@ -44,6 +44,10 @@ router.get('/structure', (_req, res) => {
   if (!fs.existsSync(INDEX_DIR_FILE)) return res.status(404).json({ detail: 'Not found' });
   res.setHeader('Content-Type', 'text/csv; charset=utf-8');
   res.download(INDEX_DIR_FILE, 'INDEKS_DIR.csv');
+});
+
+router.get('/api/files-root-git', (_req, res) => {
+  res.json({ filesRootGit: getGitCommitInfo() });
 });
 
 export default router;

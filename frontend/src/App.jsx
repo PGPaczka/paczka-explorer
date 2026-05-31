@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useEffect, useState } from 'react'
 import { Routes, Route } from 'react-router-dom'
 import { Box, Typography, Link, IconButton, Tooltip } from '@mui/material'
 import GitHub from '@mui/icons-material/GitHub'
@@ -8,9 +8,25 @@ import BrowsePage from './pages/BrowsePage'
 import AdminPage from './pages/AdminPage'
 import LoginPage from './pages/LoginPage'
 import { useThemeMode } from './ThemeContext'
+import { fetchFilesRootGit } from './api'
 
 function Footer() {
   const { mode, toggleMode } = useThemeMode()
+  const [filesRootGit, setFilesRootGit] = useState(null)
+
+  useEffect(() => {
+    let cancelled = false
+    const loadGitInfo = async () => {
+      try {
+        const data = await fetchFilesRootGit()
+        if (!cancelled) setFilesRootGit(data.filesRootGit || null)
+      } catch {
+        if (!cancelled) setFilesRootGit(null)
+      }
+    }
+    loadGitInfo()
+    return () => { cancelled = true }
+  }, [])
 
   return (
     <Box
@@ -42,6 +58,12 @@ function Footer() {
           dommilosz
         </Link>
         · Kontakt: milosz_123456 (Discord)
+        {filesRootGit && (
+          <>
+            {' '}· Commit: <code>{filesRootGit.shortCommit}</code>
+            {filesRootGit.committedAt ? ` (${new Date(filesRootGit.committedAt).toLocaleDateString()})` : ''}
+          </>
+        )}
       </Typography>
       <Tooltip title={mode === 'dark' ? 'Jasny motyw' : 'Ciemny motyw'}>
         <IconButton size="small" onClick={toggleMode} color="inherit">

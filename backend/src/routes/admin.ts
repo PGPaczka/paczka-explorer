@@ -4,7 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { FILES_ROOT, PENDING_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '../config';
-import { checkAdmin, safePath, loadPending, savePending } from '../helpers';
+import { checkAdmin, safePath, loadPending, savePending, getGitRepoStatus } from '../helpers';
 import { rateLimitUpload } from '../rateLimit';
 import { notifyNewUpload } from '../discord';
 import { rebuildIndex } from '../search';
@@ -20,7 +20,7 @@ const upload = multer({
 
 router.get('/api/pending-all', (req, res) => {
   if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  res.json({ pending: loadPending() });
+  res.json({ pending: loadPending(), filesRootGit: getGitRepoStatus() });
 });
 
 router.get('/api/pending/:path(*)?', (req, res) => {

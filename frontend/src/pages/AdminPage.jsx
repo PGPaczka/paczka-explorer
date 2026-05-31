@@ -22,6 +22,7 @@ import PreviewModal from '../components/PreviewModal'
 export default function AdminPage() {
   const navigate = useNavigate()
   const [pending, setPending] = useState([])
+  const [filesRootGit, setFilesRootGit] = useState(null)
   const [loading, setLoading] = useState(true)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewFile, setPreviewFile] = useState(null)
@@ -50,6 +51,7 @@ export default function AdminPage() {
     try {
       const data = await fetchPendingAll()
       setPending(data.pending)
+      setFilesRootGit(data.filesRootGit || null)
     } catch (err) {
       console.error(err)
     } finally {
@@ -146,6 +148,17 @@ export default function AdminPage() {
       {reindexAlert && (
         <Alert severity={reindexAlert.severity} sx={{ mb: 2 }}>
           {reindexAlert.message}
+        </Alert>
+      )}
+
+      {filesRootGit && (
+        <Alert severity="info" sx={{ mb: 2 }}>
+          FILES_ROOT: <code>{filesRootGit.shortCommit}</code>
+          {filesRootGit.branch ? ` (${filesRootGit.branch})` : ''}
+          {filesRootGit.committedAt ? ` · commit: ${new Date(filesRootGit.committedAt).toLocaleString()}` : ''}
+          {filesRootGit.upstream ? ` · upstream: ${filesRootGit.upstream}` : ' · brak upstream'}
+          {filesRootGit.upstream ? ` · ahead: ${filesRootGit.ahead}, behind: ${filesRootGit.behind}` : ''}
+          {filesRootGit.fetchedAt ? ` · fetch: ${new Date(filesRootGit.fetchedAt).toLocaleTimeString()}` : ''}
         </Alert>
       )}
 
