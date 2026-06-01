@@ -25,6 +25,9 @@ export const SERVICE_TOKENS = SERVICE_TOKENS_RAW
 export const MAX_UPLOAD_SIZE = parseInt(process.env.MAX_UPLOAD_MB || '10') * 1024 * 1024;
 export const PORT = parseInt(process.env.PORT || '8081');
 export const GITHUB_PR_URL = process.env.GITHUB_PR_URL || 'https://github.com/dommilosz/Paczka-eti-pg/pulls';
+export const GITHUB_TOKEN = process.env.GITHUB_TOKEN || '';
+export const GITHUB_REPO = process.env.GITHUB_REPO || '';
+export const GITHUB_BASE_BRANCH = process.env.GITHUB_BASE_BRANCH || '';
 export const CORS_ORIGIN = process.env.CORS_ORIGIN || '*';
 export const MAX_FILES_PER_UPLOAD = 10;
 

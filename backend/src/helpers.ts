@@ -3,7 +3,15 @@ import fs from 'fs';
 import crypto from 'crypto';
 import { execFileSync } from 'child_process';
 import { Request } from 'express';
-import { FILES_ROOT, PENDING_META, ADMIN_PASSWORD, SERVICE_TOKENS } from './config';
+import {
+  FILES_ROOT,
+  PENDING_META,
+  ADMIN_PASSWORD,
+  SERVICE_TOKENS,
+  GITHUB_TOKEN,
+  GITHUB_REPO,
+  GITHUB_BASE_BRANCH,
+} from './config';
 import previewableExtensions from './previewable-extensions.json';
 
 // ============ PENDING ============
@@ -151,8 +159,23 @@ export interface GitPullResult {
   status: GitRepoStatus | null;
 }
 
+export interface UploadPrFileInput {
+  originalName: string;
+  pendingPath: string;
+  size: number;
+}
+
+export interface UploadPrResult {
+  success: boolean;
+  prUrl?: string;
+  prNumber?: number;
+  branch?: string;
+  output: string;
+}
+
 const GIT_STATUS_CACHE_TTL_MS = 5 * 60 * 1000;
 let _gitRepoStatusCache: { repoPath: string; expiresAt: number; value: GitRepoStatus | null } | null = null;
+let _uploadPrInProgress = false;
 
 export function invalidateGitRepoStatusCache(repoPath = FILES_ROOT): void {
   if (_gitRepoStatusCache && _gitRepoStatusCache.repoPath === repoPath) {
@@ -291,6 +314,176 @@ export function gitPullRepo(repoPath = FILES_ROOT): GitPullResult {
       output: message || 'git pull zakonczyl sie bledem.',
       status: getGitRepoStatus(repoPath),
     };
+  }
+}
+
+function parseGitHubRepoFromRemote(remoteUrl: string): string | null {
+  const httpsMatch = remoteUrl.match(/github\.com[:/]+([^/]+\/[^/.]+)(?:\.git)?$/i);
+  if (httpsMatch?.[1]) return httpsMatch[1];
+  return null;
+}
+
+function getGitHubRepoSlug(repoPath: string): string {
+  if (GITHUB_REPO.trim()) return GITHUB_REPO.trim();
+  try {
+    const remote = execFileSync('git', ['config', '--get', 'remote.origin.url'], { cwd: repoPath }).toString().trim();
+    const parsed = parseGitHubRepoFromRemote(remote);
+    if (parsed) return parsed;
+  } catch {}
+  throw new Error('Brak GITHUB_REPO i nie udalo sie odczytac repo z remote.origin.url.');
+}
+
+function getCurrentBranch(repoPath: string): string {
+  const branch = execFileSync('git', ['symbolic-ref', '--short', '-q', 'HEAD'], { cwd: repoPath }).toString().trim();
+  if (!branch) throw new Error('Brak aktywnej galezi git (detached HEAD).');
+  return branch;
+}
+
+function sanitizeForBranch(value: string): string {
+  return value
+    .toLowerCase()
+    .replace(/[^a-z0-9._-]+/g, '-')
+    .replace(/-+/g, '-')
+    .replace(/^-|-$/g, '')
+    .slice(0, 40) || 'upload';
+}
+
+function cleanupUploadTempFiles(files: UploadPrFileInput[]): void {
+  for (const file of files) {
+    try {
+      if (fs.existsSync(file.pendingPath)) fs.unlinkSync(file.pendingPath);
+    } catch {}
+  }
+}
+
+export async function createUploadPullRequest(
+  targetPath: string,
+  uploaderName: string,
+  files: UploadPrFileInput[],
+  repoPath = FILES_ROOT
+): Promise<UploadPrResult> {
+  if (_uploadPrInProgress) {
+    return { success: false, output: 'Inny upload jest aktualnie przetwarzany. Sprobuj ponownie za chwile.' };
+  }
+  _uploadPrInProgress = true;
+
+  let baseBranch = '';
+  let workingBranch = '';
+  try {
+    if (!files.length) {
+      return { success: false, output: 'Brak plikow do utworzenia PR.' };
+    }
+    if (!GITHUB_TOKEN.trim()) {
+      throw new Error('Brak GITHUB_TOKEN w konfiguracji backendu.');
+    }
+    const insideWorkTree = execFileSync('git', ['rev-parse', '--is-inside-work-tree'], { cwd: repoPath }).toString().trim();
+    if (insideWorkTree !== 'true') {
+      throw new Error('FILES_ROOT nie jest repozytorium git.');
+    }
+    const dirty = execFileSync('git', ['status', '--porcelain'], { cwd: repoPath }).toString().trim();
+    if (dirty) {
+      throw new Error('Repozytorium zawiera niezacommitowane zmiany. PR uploadu zablokowany.');
+    }
+
+    baseBranch = (GITHUB_BASE_BRANCH || getCurrentBranch(repoPath)).trim();
+    if (!baseBranch) {
+      throw new Error('Nie udalo sie ustalic galezi bazowej.');
+    }
+
+    try {
+      execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
+    } catch {}
+
+    try {
+      execFileSync('git', ['pull', '--ff-only', 'origin', baseBranch], { cwd: repoPath, stdio: 'pipe', timeout: 60000 });
+    } catch {}
+
+    const branchName = `upload/${Date.now()}-${sanitizeForBranch(uploaderName || 'anonim')}`;
+    workingBranch = branchName;
+    execFileSync('git', ['checkout', '-b', branchName], { cwd: repoPath, stdio: 'pipe' });
+
+    const targetDir = safePath(targetPath || '');
+    if (!targetDir) {
+      throw new Error('Nieprawidlowa sciezka docelowa uploadu.');
+    }
+    fs.mkdirSync(targetDir, { recursive: true });
+
+    const stagedPaths: string[] = [];
+    for (const file of files) {
+      const safeName = path.basename(file.originalName).replace(/[/\\]/g, '_');
+      const destination = path.join(targetDir, safeName);
+      fs.copyFileSync(file.pendingPath, destination);
+      const rel = path.relative(repoPath, destination).replace(/\\/g, '/');
+      stagedPaths.push(rel);
+    }
+
+    execFileSync('git', ['add', '--', ...stagedPaths], { cwd: repoPath, stdio: 'pipe' });
+    const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: repoPath }).toString().trim();
+    if (!staged) {
+      execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
+      execFileSync('git', ['branch', '-D', branchName], { cwd: repoPath, stdio: 'pipe' });
+      cleanupUploadTempFiles(files);
+      return { success: false, output: 'Upload nie wprowadzil zmian w repozytorium (brak roznic).' };
+    }
+
+    const commitTitle = `upload: ${files.length} plik(ow) od ${uploaderName || 'Anonim'}`;
+    const commitBody = `Target path: ${targetPath || '/'}\nUploaded via fileserver backend.`;
+    execFileSync('git', ['commit', '-m', `${commitTitle}\n\n${commitBody}`], { cwd: repoPath, stdio: 'pipe' });
+    execFileSync('git', ['push', '-u', 'origin', branchName], { cwd: repoPath, stdio: 'pipe', timeout: 120000 });
+
+    const repoSlug = getGitHubRepoSlug(repoPath);
+    const prTitle = `Upload: ${files.length} plik(ow) do ${targetPath || '/'} (${uploaderName || 'Anonim'})`;
+    const prBody = [
+      '## Upload files',
+      `- Uploader: ${uploaderName || 'Anonim'}`,
+      `- Target path: ${targetPath || '/'}`,
+      `- Files: ${files.map((f) => `\`${f.originalName}\``).join(', ')}`,
+      '',
+      'PR utworzony automatycznie przez backend fileserver.',
+    ].join('\n');
+
+    const response = await fetch(`https://api.github.com/repos/${repoSlug}/pulls`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${GITHUB_TOKEN}`,
+        'Accept': 'application/vnd.github+json',
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        title: prTitle,
+        head: branchName,
+        base: baseBranch,
+        body: prBody,
+      }),
+    });
+    const payload: any = await response.json().catch(() => ({}));
+    if (!response.ok) {
+      const detail = payload?.message || `HTTP ${response.status}`;
+      throw new Error(`Nie udalo sie utworzyc PR w GitHub API: ${detail}`);
+    }
+
+    const prUrl = String(payload?.html_url || '');
+    const prNumber = Number(payload?.number || 0);
+    cleanupUploadTempFiles(files);
+    try {
+      execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
+    } catch {}
+    invalidateGitRepoStatusCache(repoPath);
+    return {
+      success: true,
+      prUrl,
+      prNumber: Number.isFinite(prNumber) && prNumber > 0 ? prNumber : undefined,
+      branch: branchName,
+      output: `Utworzono PR: ${prUrl || '(brak URL)'}`,
+    };
+  } catch (error: any) {
+    try {
+      if (baseBranch) execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
+    } catch {}
+    cleanupUploadTempFiles(files);
+    return { success: false, output: error?.message || 'Nieznany blad tworzenia PR.' };
+  } finally {
+    _uploadPrInProgress = false;
   }
 }
 

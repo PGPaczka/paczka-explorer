@@ -4,7 +4,7 @@ import fs from 'fs';
 import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { FILES_ROOT, PENDING_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '../config';
-import { checkAdmin, safePath, loadPending, savePending, getGitRepoStatus, gitPullRepo } from '../helpers';
+import { checkAdmin, safePath, loadPending, savePending, getGitRepoStatus, gitPullRepo, createUploadPullRequest } from '../helpers';
 import { rateLimitUpload } from '../rateLimit';
 import { notifyNewUpload } from '../discord';
 import { rebuildIndex } from '../search';
@@ -65,54 +65,36 @@ router.post('/api/upload', rateLimitUpload, upload.array('file', MAX_FILES_PER_U
 
   const targetPath = req.body.target_path || '';
   const uploaderName = req.body.uploader || 'Anonim';
-  const clientIp = req.ip || 'unknown';
-  const groupId = uuidv4().slice(0, 8);
-  const now = new Date().toISOString();
+  const uploadedFiles = files.map((f) => ({
+    originalName: f.originalname,
+    pendingPath: f.path,
+    size: f.size,
+  }));
 
-  const pending = loadPending();
-  const uploadedFiles: any[] = [];
+  createUploadPullRequest(targetPath, uploaderName, uploadedFiles)
+    .then((result) => {
+      if (!result.success) {
+        return res.status(500).json({ detail: result.output });
+      }
 
-  for (const f of files) {
-    const fileId = uuidv4().slice(0, 8);
-    const safeName = f.originalname.replace(/[/\\]/g, '_');
-    const pendingPath = path.join(PENDING_DIR, `${fileId}_${safeName}`);
-    fs.renameSync(f.path, pendingPath);
-    uploadedFiles.push({
-      file_id: fileId, original_name: f.originalname,
-      filename: safeName, size: f.size, pending_file: pendingPath,
+      // Discord notification (fire-and-forget)
+      notifyNewUpload({
+        uploader: uploaderName,
+        targetPath,
+        files: uploadedFiles.map(f => ({ original_name: f.originalName, size: f.size })),
+      });
+
+      return res.json({
+        success: true,
+        message: 'Utworzono pull request z uploadem.',
+        pr_url: result.prUrl,
+        pr_number: result.prNumber,
+        branch: result.branch,
+      });
+    })
+    .catch((err: any) => {
+      return res.status(500).json({ detail: err?.message || 'Nie udalo sie utworzyc PR.' });
     });
-  }
-
-  if (!uploadedFiles.length) return res.status(400).json({ detail: 'Żaden plik nie został zaakceptowany' });
-
-  let existingGroup: any = null;
-  for (const item of pending) {
-    if (item.ip === clientIp && item.uploader === uploaderName && item.target_path === targetPath) {
-      const itemTime = new Date(item.uploaded_at).getTime();
-      if (Date.now() - itemTime < 600000) { existingGroup = item; break; }
-    }
-  }
-
-  if (existingGroup) {
-    existingGroup.files.push(...uploadedFiles);
-    existingGroup.uploaded_at = now;
-  } else {
-    pending.push({
-      group_id: groupId, target_path: targetPath, uploader: uploaderName,
-      ip: clientIp, uploaded_at: now, files: uploadedFiles,
-    });
-  }
-
-  savePending(pending);
-
-  // Discord notification (fire-and-forget)
-  notifyNewUpload({
-    uploader: uploaderName,
-    targetPath,
-    files: uploadedFiles.map(f => ({ original_name: f.original_name, size: f.size })),
-  });
-
-  res.json({ success: true, message: 'Pliki wysłane do zatwierdzenia' });
 });
 
 // ============ CREATE FOLDER ============
