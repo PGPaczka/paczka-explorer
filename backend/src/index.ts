@@ -4,7 +4,7 @@ import fs from 'fs';
 import cors from 'cors';
 import compression from 'compression';
 import cookieParser from 'cookie-parser';
-import { PORT, CORS_ORIGIN, PENDING_DIR, FILES_ROOT, INDEX_FILE, INDEX_DIR_FILE } from './config';
+import { PORT, CORS_ORIGIN, TEMP_DIR, FILES_ROOT, INDEX_FILE, INDEX_DIR_FILE } from './config';
 
 import authRoutes from './routes/auth';
 import browseRoutes from './routes/browse';
@@ -17,8 +17,8 @@ import { loadIndex, rebuildIndex } from './search';
 import { rateLimitGeneral } from './rateLimit';
 import { logMetadataDbStartupStatus } from './metadataDb';
 
-// Ensure pending dir exists
-fs.mkdirSync(PENDING_DIR, { recursive: true });
+// Ensure temp uploads/zip dir exists
+fs.mkdirSync(TEMP_DIR, { recursive: true });
 
 // Pre-load search index into memory for fast queries.
 // If index files are missing on startup, build them first.

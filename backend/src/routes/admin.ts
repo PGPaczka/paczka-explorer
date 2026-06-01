@@ -2,9 +2,8 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import multer from 'multer';
-import { v4 as uuidv4 } from 'uuid';
-import { FILES_ROOT, PENDING_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '../config';
-import { checkAdmin, safePath, loadPending, savePending, getGitRepoStatus, gitPullRepo, createUploadPullRequest } from '../helpers';
+import { FILES_ROOT, TEMP_DIR, MAX_UPLOAD_SIZE, MAX_FILES_PER_UPLOAD } from '../config';
+import { checkAdmin, safePath, gitPullRepo, createUploadPullRequest } from '../helpers';
 import { rateLimitUpload } from '../rateLimit';
 import { notifyNewUpload } from '../discord';
 import { rebuildIndex } from '../search';
@@ -12,22 +11,8 @@ import { rebuildIndex } from '../search';
 const router = Router();
 
 const upload = multer({
-  dest: PENDING_DIR,
+  dest: TEMP_DIR,
   limits: { fileSize: MAX_UPLOAD_SIZE, files: MAX_FILES_PER_UPLOAD },
-});
-
-// ============ PENDING ============
-
-router.get('/api/pending-all', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  res.json({ pending: loadPending(), filesRootGit: getGitRepoStatus() });
-});
-
-router.get('/api/pending/:path(*)?', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  const p = req.params.path || '';
-  const pending = loadPending();
-  res.json({ pending: pending.filter(g => (g.target_path || '') === p) });
 });
 
 router.post('/api/admin/reindex', (_req, res) => {
@@ -67,7 +52,7 @@ router.post('/api/upload', rateLimitUpload, upload.array('file', MAX_FILES_PER_U
   const uploaderName = req.body.uploader || 'Anonim';
   const uploadedFiles = files.map((f) => ({
     originalName: f.originalname,
-    pendingPath: f.path,
+    tempPath: f.path,
     size: f.size,
   }));
 
@@ -95,36 +80,6 @@ router.post('/api/upload', rateLimitUpload, upload.array('file', MAX_FILES_PER_U
     .catch((err: any) => {
       return res.status(500).json({ detail: err?.message || 'Nie udalo sie utworzyc PR.' });
     });
-});
-
-// ============ CREATE FOLDER ============
-
-router.post('/api/create-folder', (req, res) => {
-  const { target_path = '', folder_name = '' } = req.body || {};
-  const name = folder_name.trim().replace(/[/\\]/g, '').replace(/\.\./g, '');
-  if (!name) return res.status(400).json({ detail: 'Nazwa folderu nie może być pusta' });
-
-  const clientIp = req.ip || 'unknown';
-  const groupId = uuidv4().slice(0, 8);
-  const now = new Date().toISOString();
-
-  const pending = loadPending();
-  pending.push({
-    group_id: groupId, type: 'folder', target_path, folder_name: name,
-    uploader: 'Anonim', ip: clientIp, uploaded_at: now, files: [],
-  });
-  savePending(pending);
-
-  // Discord notification (fire-and-forget)
-  notifyNewUpload({
-    uploader: 'Anonim',
-    targetPath: target_path,
-    files: [],
-    type: 'folder',
-    folderName: name,
-  });
-
-  res.json({ success: true, message: 'Folder wysłany do zatwierdzenia' });
 });
 
 // ============ DELETE ============
@@ -165,107 +120,6 @@ router.post('/api/admin/rename', (req, res) => {
 
   fs.renameSync(target, newTarget);
   res.json({ success: true, new_path: path.relative(FILES_ROOT, newTarget).replace(/\\/g, '/') });
-});
-
-// ============ VIEW PENDING FILE ============
-
-router.get('/admin/view/:fileId/:filename?', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  const pending = loadPending();
-  for (const group of pending) {
-    for (const f of (group.files || [])) {
-      if (f.file_id === req.params.fileId) {
-        if (!fs.existsSync(f.pending_file)) return res.status(404).json({ detail: 'Not found' });
-        const ext = path.extname(f.original_name).toLowerCase();
-        const mimeTypes: Record<string, string> = {'.pdf':'application/pdf','.jpg':'image/jpeg','.jpeg':'image/jpeg','.png':'image/png',
-          '.gif':'image/gif','.svg':'image/svg+xml','.txt':'text/plain','.csv':'text/plain'};
-        res.setHeader('Content-Type', mimeTypes[ext] || 'application/octet-stream');
-        res.setHeader('Content-Disposition', 'inline');
-        return fs.createReadStream(f.pending_file).pipe(res);
-      }
-    }
-  }
-  res.status(404).json({ detail: 'Not found' });
-});
-
-// ============ APPROVE / REJECT ============
-
-router.post('/api/admin/approve', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  const { group_id } = req.body || {};
-  const pending = loadPending();
-  const group = pending.find(g => g.group_id === group_id);
-  if (!group) return res.status(404).json({ detail: 'Not found' });
-
-  const targetPath = group.target_path || '';
-  if (group.type === 'folder') {
-    const dir = path.join(safePath(targetPath) || FILES_ROOT, group.folder_name);
-    fs.mkdirSync(dir, { recursive: true });
-  } else {
-    const targetDir = path.join(FILES_ROOT, targetPath);
-    fs.mkdirSync(targetDir, { recursive: true });
-    for (const f of (group.files || [])) {
-      if (fs.existsSync(f.pending_file)) {
-        fs.renameSync(f.pending_file, path.join(targetDir, f.original_name));
-      }
-    }
-  }
-  savePending(pending.filter(g => g.group_id !== group_id));
-  res.json({ success: true });
-});
-
-router.post('/api/admin/reject', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  const { group_id } = req.body || {};
-  const pending = loadPending();
-  const group = pending.find(g => g.group_id === group_id);
-  if (!group) return res.status(404).json({ detail: 'Not found' });
-
-  for (const f of (group.files || [])) {
-    if (fs.existsSync(f.pending_file)) fs.unlinkSync(f.pending_file);
-  }
-  savePending(pending.filter(g => g.group_id !== group_id));
-  res.json({ success: true });
-});
-
-router.post('/api/admin/approve-file', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  const { group_id, file_id } = req.body || {};
-  const pending = loadPending();
-  const group = pending.find(g => g.group_id === group_id);
-  if (!group) return res.status(404).json({ detail: 'Not found' });
-
-  const fileEntry = (group.files || []).find((f: any) => f.file_id === file_id);
-  if (!fileEntry) return res.status(404).json({ detail: 'Not found' });
-
-  const targetDir = path.join(FILES_ROOT, group.target_path || '');
-  fs.mkdirSync(targetDir, { recursive: true });
-  if (fs.existsSync(fileEntry.pending_file)) {
-    fs.renameSync(fileEntry.pending_file, path.join(targetDir, fileEntry.original_name));
-  }
-
-  group.files = group.files.filter((f: any) => f.file_id !== file_id);
-  if (!group.files.length) savePending(pending.filter(g => g.group_id !== group_id));
-  else savePending(pending);
-  res.json({ success: true });
-});
-
-router.post('/api/admin/reject-file', (req, res) => {
-  if (!checkAdmin(req)) return res.status(403).json({ detail: 'Forbidden' });
-  const { group_id, file_id } = req.body || {};
-  const pending = loadPending();
-  const group = pending.find(g => g.group_id === group_id);
-  if (!group) return res.status(404).json({ detail: 'Not found' });
-
-  const fileEntry = (group.files || []).find((f: any) => f.file_id === file_id);
-  if (!fileEntry) return res.status(404).json({ detail: 'Not found' });
-
-  if (fs.existsSync(fileEntry.pending_file)) fs.unlinkSync(fileEntry.pending_file);
-
-  group.files = group.files.filter((f: any) => f.file_id !== file_id);
-  if (!group.files.length) savePending(pending.filter(g => g.group_id !== group_id));
-  else savePending(pending);
-  res.json({ success: true });
 });
 
 export default router;

@@ -15,19 +15,6 @@ export async function fetchBrowse(path = '') {
   return res.json()
 }
 
-export async function fetchPending(path = '') {
-  const encodedPath = encodePath(path)
-  const res = await fetch(`${API_BASE}/api/pending/${encodedPath}`, fetchOpts)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-export async function fetchPendingAll() {
-  const res = await fetch(`${API_BASE}/api/pending-all`, fetchOpts)
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
 export async function fetchAuthStatus() {
   const res = await fetch(`${API_BASE}/api/auth-status`, fetchOpts)
   if (!res.ok) throw new Error(`HTTP ${res.status}`)
@@ -75,63 +62,6 @@ export async function uploadFiles(files, targetPath, uploader) {
   return res.json()
 }
 
-export async function createFolder(targetPath, folderName) {
-  const res = await fetch(`${API_BASE}/api/create-folder`, {
-    ...fetchOpts,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ target_path: targetPath, folder_name: folderName }),
-  })
-  if (!res.ok) {
-    const err = await res.json().catch(() => ({}))
-    throw new Error(err.detail || `HTTP ${res.status}`)
-  }
-  return res.json()
-}
-
-export async function adminApprove(groupId) {
-  const res = await fetch(`${API_BASE}/api/admin/approve`, {
-    ...fetchOpts,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ group_id: groupId }),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-export async function adminReject(groupId) {
-  const res = await fetch(`${API_BASE}/api/admin/reject`, {
-    ...fetchOpts,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ group_id: groupId }),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-export async function adminApproveFile(groupId, fileId) {
-  const res = await fetch(`${API_BASE}/api/admin/approve-file`, {
-    ...fetchOpts,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ group_id: groupId, file_id: fileId }),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
-
-export async function adminRejectFile(groupId, fileId) {
-  const res = await fetch(`${API_BASE}/api/admin/reject-file`, {
-    ...fetchOpts,
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ group_id: groupId, file_id: fileId }),
-  })
-  if (!res.ok) throw new Error(`HTTP ${res.status}`)
-  return res.json()
-}
 
 export async function adminDeleteFile(filePath) {
   const res = await fetch(`${API_BASE}/api/admin/delete-file`, {
@@ -250,11 +180,6 @@ export function getDownloadUrl(rel) {
 
 export function getDownloadFolderUrl(rel) {
   return `${API_BASE}/download-folder/${encodePath(rel)}`
-}
-
-export function getAdminViewUrl(fileId, filename) {
-  if (filename) return `${API_BASE}/admin/view/${fileId}/${encodeURIComponent(filename)}`
-  return `${API_BASE}/admin/view/${fileId}`
 }
 
 export async function fetchBrowseZip(zipPath) {

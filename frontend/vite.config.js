@@ -11,7 +11,6 @@ export default defineConfig({
       '/download': 'http://localhost:8081',
       '/download-folder': 'http://localhost:8081',
       '/view': 'http://localhost:8081',
-      '/admin/view': 'http://localhost:8081',
       '/indeks.csv': 'http://localhost:8081',
     }
   }

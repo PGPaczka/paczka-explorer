@@ -15,7 +15,6 @@ import ArrowUpward from '@mui/icons-material/ArrowUpward'
 import ArrowBack from '@mui/icons-material/ArrowBack'
 import ArrowForward from '@mui/icons-material/ArrowForward'
 import CloudUpload from '@mui/icons-material/CloudUpload'
-import CreateNewFolder from '@mui/icons-material/CreateNewFolder'
 import GitHub from '@mui/icons-material/GitHub'
 import DeleteIcon from '@mui/icons-material/Delete'
 import EditIcon from '@mui/icons-material/Edit'
@@ -28,9 +27,7 @@ import SwapVert from '@mui/icons-material/SwapVert'
 import Home from '@mui/icons-material/Home'
 import { fetchBrowse, fetchBrowseZip, fetchAuthStatus, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
 import UploadDialog from '../components/UploadDialog'
-import CreateFolderDialog from '../components/CreateFolderDialog'
 import PreviewModal from '../components/PreviewModal'
-import PendingSection from '../components/PendingSection'
 import ZipProgressDialog from '../components/ZipProgressDialog'
 import FileEntry from '../components/FileEntry'
 import FileGridEntry from '../components/FileGridEntry'
@@ -64,7 +61,6 @@ export default function BrowsePage() {
   const [search, setSearch] = useState('')
   const [selected, setSelected] = useState(new Set())
   const [uploadOpen, setUploadOpen] = useState(false)
-  const [folderOpen, setFolderOpen] = useState(false)
   const [previewOpen, setPreviewOpen] = useState(false)
   const [previewIndex, setPreviewIndex] = useState(0)
   const [previewFiles, setPreviewFiles] = useState([])
@@ -855,11 +851,6 @@ export default function BrowsePage() {
         </MenuItem>
       </Menu>
 
-      {/* Pending section (admin only) */}
-      {data.isAdmin && (
-        <PendingSection path={currentPath} onRefresh={() => loadData(true)} />
-      )}
-
       {/* Navigation arrows + breadcrumb inline */}
       <Stack direction="row" spacing={2} alignItems="center" sx={{ mb: 1, minWidth: 0 }}>
         <Stack direction="row" spacing={0.5} sx={{ flexShrink: 0 }}>
@@ -1119,16 +1110,16 @@ export default function BrowsePage() {
         </Box>
       )}
 
-      {/* Upload & Create Folder section */}
+      {/* Upload section */}
       <Paper variant="outlined" sx={{ p: 3 }}>
-        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3} divider={<Divider orientation="vertical" flexItem />}>
+        <Stack direction={{ xs: 'column', sm: 'row' }} spacing={3}>
           <Box flex={1}>
             <Typography variant="h6" gutterBottom><CloudUpload sx={{ fontSize: 20, verticalAlign: 'text-bottom', mr: 0.5 }} />Wrzuć pliki</Typography>
             <Button variant="contained" startIcon={<CloudUpload />} onClick={() => setUploadOpen(true)}>
               Wybierz pliki
             </Button>
             <Typography variant="caption" display="block" sx={{ mt: 1 }} color="text.secondary">
-              Maks. 10 plików, 10 MB/plik. Pojawią się po zatwierdzeniu.
+              Maks. 10 plików, 10 MB/plik. Dla uploadu tworzony jest Pull Request.
             </Typography>
             {data.githubPrUrl && (
               <Typography variant="caption" display="block" color="text.secondary">
@@ -1138,12 +1129,6 @@ export default function BrowsePage() {
                 </Link>
               </Typography>
             )}
-          </Box>
-          <Box>
-            <Typography variant="h6" gutterBottom><CreateNewFolder sx={{ fontSize: 20, verticalAlign: 'text-bottom', mr: 0.5 }} />Nowy folder</Typography>
-            <Button variant="contained" color="secondary" startIcon={<CreateNewFolder />} onClick={() => setFolderOpen(true)}>
-              Utwórz folder
-            </Button>
           </Box>
         </Stack>
       </Paper>
@@ -1161,12 +1146,6 @@ export default function BrowsePage() {
             showSnackbar(result?.message || 'Pliki wysłane pomyślnie')
           }
         }}
-      />
-      <CreateFolderDialog
-        open={folderOpen}
-        onClose={() => setFolderOpen(false)}
-        targetPath={currentPath}
-        onSuccess={() => { loadData(true); showSnackbar('Folder wysłany do zatwierdzenia') }}
       />
       <PreviewModal
         open={previewOpen}

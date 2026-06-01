@@ -9,7 +9,7 @@ import ArrowForward from '@mui/icons-material/ArrowForward'
 import Download from '@mui/icons-material/Download'
 import Code from '@mui/icons-material/Code'
 import Article from '@mui/icons-material/Article'
-import { getViewUrl, getDownloadUrl, getAdminViewUrl, getViewZipUrl } from '../api'
+import { getViewUrl, getDownloadUrl, getViewZipUrl } from '../api'
 import CodePreview from './CodePreview'
 
 // Individual slide renderer - handles one file preview
@@ -270,17 +270,16 @@ function PreviewSlide({ file, getUrl, visible, viewMode }) {
   )
 }
 
-export default function PreviewModal({ open, onClose, files, index, onIndexChange, isPending = false }) {
+export default function PreviewModal({ open, onClose, files, index, onIndexChange }) {
   const file = files[index]
   const [viewMode, setViewMode] = useState('render')
 
   const isRenderable = file && (file.previewType === 'markdown' || (file.previewType === 'text' && ['.html','.htm','.xml'].includes((file.ext || '').toLowerCase())))
 
   const getUrl = useCallback((f) => {
-    if (isPending) return getAdminViewUrl(f.rel)
     if (f.isInZip) return getViewZipUrl(f.rel)
     return getViewUrl(f.rel)
-  }, [isPending])
+  }, [])
 
   // Determine which indices to prerender (prev, current, next)
   const renderIndices = useMemo(() => {
@@ -318,16 +317,12 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
       }}
     >
       <DialogTitle sx={{ display: 'flex', alignItems: 'center', gap: 1, py: 1, px: { xs: 1, sm: 2 } }}>
-        {!isPending && (
-          <IconButton disabled={index <= 0} onClick={() => onIndexChange(index - 1)}>
-            <ArrowBack />
-          </IconButton>
-        )}
-        {!isPending && (
-          <IconButton disabled={index >= files.length - 1} onClick={() => onIndexChange(index + 1)}>
-            <ArrowForward />
-          </IconButton>
-        )}
+        <IconButton disabled={index <= 0} onClick={() => onIndexChange(index - 1)}>
+          <ArrowBack />
+        </IconButton>
+        <IconButton disabled={index >= files.length - 1} onClick={() => onIndexChange(index + 1)}>
+          <ArrowForward />
+        </IconButton>
         {isRenderable && (
           <ToggleButtonGroup
             value={viewMode}
@@ -355,11 +350,9 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
           {file.name}
         </Typography>
         <Stack direction="row" gap={0.5}>
-          {!isPending && (
-            <Button size="small" variant="contained" startIcon={<Download />} href={getDownloadUrl(file.rel)}>
-              Pobierz
-            </Button>
-          )}
+          <Button size="small" variant="contained" startIcon={<Download />} href={getDownloadUrl(file.rel)}>
+            Pobierz
+          </Button>
           <IconButton onClick={onClose}><Close /></IconButton>
         </Stack>
       </DialogTitle>
@@ -383,7 +376,7 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
           />
         ))}
       </DialogContent>
-      {!isPending && files.length > 1 && (
+      {files.length > 1 && (
         <Typography variant="caption" textAlign="center" sx={{ pb: 1 }} color="text.secondary">
           {index + 1} / {files.length}
         </Typography>

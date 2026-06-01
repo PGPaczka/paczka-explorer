@@ -5,7 +5,6 @@ import { execFileSync } from 'child_process';
 import { Request } from 'express';
 import {
   FILES_ROOT,
-  PENDING_META,
   ADMIN_PASSWORD,
   SERVICE_TOKENS,
   GITHUB_TOKEN,
@@ -13,21 +12,6 @@ import {
   GITHUB_BASE_BRANCH,
 } from './config';
 import previewableExtensions from './previewable-extensions.json';
-
-// ============ PENDING ============
-
-export function loadPending(): any[] {
-  try {
-    if (fs.existsSync(PENDING_META)) {
-      return JSON.parse(fs.readFileSync(PENDING_META, 'utf-8'));
-    }
-  } catch {}
-  return [];
-}
-
-export function savePending(data: any[]): void {
-  fs.writeFileSync(PENDING_META, JSON.stringify(data, null, 2), 'utf-8');
-}
 
 // ============ FILE UTILS ============
 
@@ -161,7 +145,7 @@ export interface GitPullResult {
 
 export interface UploadPrFileInput {
   originalName: string;
-  pendingPath: string;
+  tempPath: string;
   size: number;
 }
 
@@ -351,7 +335,7 @@ function sanitizeForBranch(value: string): string {
 function cleanupUploadTempFiles(files: UploadPrFileInput[]): void {
   for (const file of files) {
     try {
-      if (fs.existsSync(file.pendingPath)) fs.unlinkSync(file.pendingPath);
+      if (fs.existsSync(file.tempPath)) fs.unlinkSync(file.tempPath);
     } catch {}
   }
 }
@@ -426,7 +410,7 @@ export async function createUploadPullRequest(
     for (const file of files) {
       const safeName = path.basename(file.originalName).replace(/[/\\]/g, '_');
       const destination = path.join(targetDir, safeName);
-      fs.copyFileSync(file.pendingPath, destination);
+      fs.copyFileSync(file.tempPath, destination);
       const rel = path.relative(repoPath, destination).replace(/\\/g, '/');
       stagedPaths.push(rel);
     }

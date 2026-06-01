@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import archiver from 'archiver';
 import { v4 as uuidv4 } from 'uuid';
-import { PENDING_DIR } from '../config';
+import { TEMP_DIR } from '../config';
 import { safePath, readdirRecursive } from '../helpers';
 
 const router = Router();
@@ -30,7 +30,7 @@ function cleanupOldJobs(): void {
 }
 
 function buildZipJob(jobId: string, fileList: { fullPath: string; arcName: string }[], filename: string): void {
-  const tmpPath = path.join(PENDING_DIR, `zip_${jobId}.zip`);
+  const tmpPath = path.join(TEMP_DIR, `zip_${jobId}.zip`);
   zipJobs[jobId] = { status: 'packing', progress: 0, tmpPath, filename, created: Date.now() };
 
   const output = fs.createWriteStream(tmpPath);

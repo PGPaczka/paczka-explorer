@@ -15,7 +15,7 @@ function formatSize(b: number): string {
 }
 
 /**
- * Send a Discord webhook notification about a new pending upload.
+ * Send a Discord webhook notification about a new upload.
  * Fails silently — notifications are best-effort.
  */
 export async function notifyNewUpload(info: UploadNotification): Promise<void> {
