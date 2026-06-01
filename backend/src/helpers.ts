@@ -356,6 +356,15 @@ function cleanupUploadTempFiles(files: UploadPrFileInput[]): void {
   }
 }
 
+function deleteLocalBranchIfExists(repoPath: string, branchName: string): void {
+  if (!branchName) return;
+  try {
+    const listOutput = execFileSync('git', ['branch', '--list', branchName], { cwd: repoPath }).toString().trim();
+    if (!listOutput) return;
+    execFileSync('git', ['branch', '-D', branchName], { cwd: repoPath, stdio: 'pipe' });
+  } catch {}
+}
+
 export async function createUploadPullRequest(
   targetPath: string,
   uploaderName: string,
@@ -367,8 +376,11 @@ export async function createUploadPullRequest(
   }
   _uploadPrInProgress = true;
 
+  let originalBranch = '';
+  let originalHead = '';
   let baseBranch = '';
   let workingBranch = '';
+  let pushedToRemote = false;
   try {
     if (!files.length) {
       return { success: false, output: 'Brak plikow do utworzenia PR.' };
@@ -384,23 +396,25 @@ export async function createUploadPullRequest(
     if (dirty) {
       throw new Error('Repozytorium zawiera niezacommitowane zmiany. PR uploadu zablokowany.');
     }
+    originalBranch = getCurrentBranch(repoPath);
+    originalHead = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoPath }).toString().trim();
 
-    baseBranch = (GITHUB_BASE_BRANCH || getCurrentBranch(repoPath)).trim();
+    baseBranch = (GITHUB_BASE_BRANCH || originalBranch).trim();
     if (!baseBranch) {
       throw new Error('Nie udalo sie ustalic galezi bazowej.');
     }
 
+    let startPoint = baseBranch;
     try {
-      execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
-    } catch {}
-
-    try {
-      execFileSync('git', ['pull', '--ff-only', 'origin', baseBranch], { cwd: repoPath, stdio: 'pipe', timeout: 60000 });
+      execFileSync('git', ['fetch', '--prune', 'origin', baseBranch], { cwd: repoPath, stdio: 'pipe', timeout: 60000 });
+      const remoteBase = `origin/${baseBranch}`;
+      const remoteExists = execFileSync('git', ['rev-parse', '--verify', remoteBase], { cwd: repoPath }).toString().trim();
+      if (remoteExists) startPoint = remoteBase;
     } catch {}
 
     const branchName = `upload/${Date.now()}-${sanitizeForBranch(uploaderName || 'anonim')}`;
     workingBranch = branchName;
-    execFileSync('git', ['checkout', '-b', branchName], { cwd: repoPath, stdio: 'pipe' });
+    execFileSync('git', ['checkout', '-b', branchName, startPoint], { cwd: repoPath, stdio: 'pipe' });
 
     const targetDir = safePath(targetPath || '');
     if (!targetDir) {
@@ -420,16 +434,14 @@ export async function createUploadPullRequest(
     execFileSync('git', ['add', '--', ...stagedPaths], { cwd: repoPath, stdio: 'pipe' });
     const staged = execFileSync('git', ['diff', '--cached', '--name-only'], { cwd: repoPath }).toString().trim();
     if (!staged) {
-      execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
-      execFileSync('git', ['branch', '-D', branchName], { cwd: repoPath, stdio: 'pipe' });
-      cleanupUploadTempFiles(files);
-      return { success: false, output: 'Upload nie wprowadzil zmian w repozytorium (brak roznic).' };
+      throw new Error('Upload nie wprowadzil zmian w repozytorium (brak roznic).');
     }
 
     const commitTitle = `upload: ${files.length} plik(ow) od ${uploaderName || 'Anonim'}`;
     const commitBody = `Target path: ${targetPath || '/'}\nUploaded via fileserver backend.`;
     execFileSync('git', ['commit', '-m', `${commitTitle}\n\n${commitBody}`], { cwd: repoPath, stdio: 'pipe' });
     execFileSync('git', ['push', '-u', 'origin', branchName], { cwd: repoPath, stdio: 'pipe', timeout: 120000 });
+    pushedToRemote = true;
 
     const repoSlug = getGitHubRepoSlug(repoPath);
     const prTitle = `Upload: ${files.length} plik(ow) do ${targetPath || '/'} (${uploaderName || 'Anonim'})`;
@@ -466,8 +478,12 @@ export async function createUploadPullRequest(
     const prNumber = Number(payload?.number || 0);
     cleanupUploadTempFiles(files);
     try {
-      execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
+      execFileSync('git', ['checkout', originalBranch], { cwd: repoPath, stdio: 'pipe' });
+      if (originalHead) {
+        execFileSync('git', ['reset', '--hard', originalHead], { cwd: repoPath, stdio: 'pipe' });
+      }
     } catch {}
+    deleteLocalBranchIfExists(repoPath, branchName);
     invalidateGitRepoStatusCache(repoPath);
     return {
       success: true,
@@ -478,9 +494,18 @@ export async function createUploadPullRequest(
     };
   } catch (error: any) {
     try {
-      if (baseBranch) execFileSync('git', ['checkout', baseBranch], { cwd: repoPath, stdio: 'pipe' });
+      if (pushedToRemote && workingBranch) {
+        execFileSync('git', ['push', 'origin', '--delete', workingBranch], { cwd: repoPath, stdio: 'pipe', timeout: 60000 });
+      }
     } catch {}
+    try {
+      if (originalBranch) execFileSync('git', ['checkout', originalBranch], { cwd: repoPath, stdio: 'pipe' });
+      if (originalHead) execFileSync('git', ['reset', '--hard', originalHead], { cwd: repoPath, stdio: 'pipe' });
+      execFileSync('git', ['clean', '-fd'], { cwd: repoPath, stdio: 'pipe' });
+    } catch {}
+    deleteLocalBranchIfExists(repoPath, workingBranch);
     cleanupUploadTempFiles(files);
+    invalidateGitRepoStatusCache(repoPath);
     return { success: false, output: error?.message || 'Nieznany blad tworzenia PR.' };
   } finally {
     _uploadPrInProgress = false;
