@@ -2,7 +2,7 @@ import { Router } from 'express';
 import path from 'path';
 import fs from 'fs';
 import { INDEX_FILE, INDEX_DIR_FILE } from '../config';
-import { safePath, getGitCommitInfo } from '../helpers';
+import { safePath, getGitRepoStatus } from '../helpers';
 
 const router = Router();
 
@@ -47,7 +47,7 @@ router.get('/structure', (_req, res) => {
 });
 
 router.get('/api/files-root-git', (_req, res) => {
-  res.json({ filesRootGit: getGitCommitInfo() });
+  res.json({ filesRootGit: getGitRepoStatus() });
 });
 
 export default router;
