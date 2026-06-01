@@ -202,7 +202,7 @@ export function getGitRepoStatus(repoPath = FILES_ROOT): GitRepoStatus | null {
     if (insideWorkTree === 'true') {
       // Refresh remote refs to compute accurate ahead/behind.
       try {
-        execFileSync('git', ['fetch', '--all', '--prune'], { cwd: repoPath, stdio: 'pipe', timeout: 15000 });
+        execFileSync('git', ['fetch', '--all', '--prune'], { cwd: repoPath, stdio: 'pipe', timeout: 30000 });
       } catch {}
 
       const commit = execFileSync('git', ['rev-parse', 'HEAD'], { cwd: repoPath }).toString().trim();
@@ -221,15 +221,27 @@ export function getGitRepoStatus(repoPath = FILES_ROOT): GitRepoStatus | null {
       let ahead = 0;
       let behind = 0;
       try {
-        const up = execFileSync('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { cwd: repoPath }).toString().trim();
+        const up = execFileSync('git', ['rev-parse', '--abbrev-ref', '--symbolic-full-name', '@{u}'], { cwd: repoPath, stdio: 'pipe' }).toString().trim();
         upstream = up || null;
       } catch {
-        upstream = null;
+        // Fallback: read upstream from git config directly
+        if (branch) {
+          try {
+            const remote = execFileSync('git', ['config', '--get', `branch.${branch}.remote`], { cwd: repoPath, stdio: 'pipe' }).toString().trim();
+            const merge = execFileSync('git', ['config', '--get', `branch.${branch}.merge`], { cwd: repoPath, stdio: 'pipe' }).toString().trim();
+            if (remote && merge) {
+              const remoteBranch = merge.replace(/^refs\/heads\//, '');
+              upstream = `${remote}/${remoteBranch}`;
+            }
+          } catch {
+            upstream = null;
+          }
+        }
       }
 
       if (upstream) {
         try {
-          const counts = execFileSync('git', ['rev-list', '--left-right', '--count', 'HEAD...@{u}'], { cwd: repoPath }).toString().trim();
+          const counts = execFileSync('git', ['rev-list', '--left-right', '--count', `HEAD...${upstream}`], { cwd: repoPath, stdio: 'pipe' }).toString().trim();
           const [aheadRaw = '0', behindRaw = '0'] = counts.split(/\s+/);
           ahead = parseInt(aheadRaw, 10) || 0;
           behind = parseInt(behindRaw, 10) || 0;
