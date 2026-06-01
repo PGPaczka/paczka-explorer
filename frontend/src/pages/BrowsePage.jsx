@@ -71,7 +71,7 @@ export default function BrowsePage() {
   const [zipDialogOpen, setZipDialogOpen] = useState(false)
   const [zipJobId, setZipJobId] = useState(null)
   const [zipTotalFiles, setZipTotalFiles] = useState(0)
-  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success' })
+  const [snackbar, setSnackbar] = useState({ open: false, message: '', severity: 'success', link: '' })
   const [searchMode, setSearchMode] = useState('local') // 'local' or 'global'
   const [globalResults, setGlobalResults] = useState(null)
   const [globalSearchLoading, setGlobalSearchLoading] = useState(false)
@@ -480,8 +480,8 @@ export default function BrowsePage() {
     }
   }
 
-  const showSnackbar = (message, severity = 'success') => {
-    setSnackbar({ open: true, message, severity })
+  const showSnackbar = (message, severity = 'success', link = '') => {
+    setSnackbar({ open: true, message, severity, link })
   }
 
   const handleCopyLink = () => {
@@ -1153,7 +1153,14 @@ export default function BrowsePage() {
         open={uploadOpen}
         onClose={() => setUploadOpen(false)}
         targetPath={currentPath}
-        onSuccess={() => { loadData(true); showSnackbar('Pliki wysłane do zatwierdzenia') }}
+        onSuccess={(result) => {
+          loadData(true)
+          if (result?.pr_url) {
+            showSnackbar('Utworzono pull request dla uploadu.', 'success', result.pr_url)
+          } else {
+            showSnackbar(result?.message || 'Pliki wysłane pomyślnie')
+          }
+        }}
       />
       <CreateFolderDialog
         open={folderOpen}
@@ -1193,7 +1200,14 @@ export default function BrowsePage() {
         anchorOrigin={{ vertical: 'bottom', horizontal: 'center' }}
       >
         <Alert severity={snackbar.severity} onClose={() => setSnackbar(s => ({ ...s, open: false }))}>
-          {snackbar.message}
+          <Box>
+            <Typography variant="body2">{snackbar.message}</Typography>
+            {snackbar.link ? (
+              <Link href={snackbar.link} target="_blank" rel="noopener" underline="hover">
+                Otwórz PR
+              </Link>
+            ) : null}
+          </Box>
         </Alert>
       </Snackbar>
     </Container>

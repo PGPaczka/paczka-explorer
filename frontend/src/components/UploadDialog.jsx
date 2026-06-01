@@ -59,11 +59,11 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
     setLoading(true)
     setError('')
     try {
-      await uploadFiles(files, targetPath, uploader)
+      const result = await uploadFiles(files, targetPath, uploader)
       setFiles([])
       setUploader('')
       onClose()
-      onSuccess()
+      onSuccess(result)
     } catch (err) {
       setError(err.message)
     } finally {
