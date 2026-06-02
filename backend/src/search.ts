@@ -3,7 +3,7 @@ import path from 'path';
 import { INDEX_FILE } from './config';
 import { formatSize, isPreviewable, getPreviewType, isMetadataFileName } from './helpers';
 import { rebuildIndexFiles } from './indexer';
-import { readDbMetadataByRelPath } from './metadataDb';
+import { getMetadataByRelPath, reloadMetadataCache } from './metadataCache';
 
 // ============ IN-MEMORY INDEX ============
 
@@ -84,7 +84,7 @@ export function loadIndex(force = false): void {
     const filename = path.basename(relPath);
     const ext = path.extname(filename).toLowerCase();
     const size = parseInt(sizeStr) || 0;
-    const metadata = readDbMetadataByRelPath(relNorm);
+    const metadata = getMetadataByRelPath(relNorm);
     const metadataSearchable = buildMetadataSearchable(metadata);
 
     const searchable = `${relPath} ${semester} ${subject} ${desc} ${filename} ${metadataSearchable}`.toLowerCase();
@@ -115,6 +115,7 @@ export function loadIndex(force = false): void {
 
 export function rebuildIndex(): { fileCount: number; dirCount: number } {
   const stats = rebuildIndexFiles();
+  reloadMetadataCache();
   loadIndex(true);
   return stats;
 }

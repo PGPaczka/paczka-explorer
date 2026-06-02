@@ -15,7 +15,7 @@ import zipBrowseRoutes from './routes/zipBrowse';
 import adminRoutes from './routes/admin';
 import { loadIndex, rebuildIndex } from './search';
 import { rateLimitGeneral } from './rateLimit';
-import { logMetadataDbStartupStatus } from './metadataDb';
+import { loadMetadataCache, getMetadataCacheStatus } from './metadataCache';
 
 // Ensure temp uploads/zip dir exists
 fs.mkdirSync(TEMP_DIR, { recursive: true });
@@ -36,7 +36,15 @@ if (!fs.existsSync(INDEX_FILE) || !fs.existsSync(INDEX_DIR_FILE)) {
 } else {
   loadIndex();
 }
-logMetadataDbStartupStatus();
+
+// Load metadata cache from CSV file
+console.log('[startup] Loading metadata cache from CSV...');
+loadMetadataCache();
+const metadataCacheStatus = getMetadataCacheStatus();
+console.log(`[startup] Metadata cache loaded: ${metadataCacheStatus.entryCount} entries`);
+if (metadataCacheStatus.error) {
+  console.warn(`[startup] Metadata cache error: ${metadataCacheStatus.error}`);
+}
 
 const app = express();
 

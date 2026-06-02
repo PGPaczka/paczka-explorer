@@ -14,12 +14,7 @@ export const TEMP_DIR = path.resolve(
 );
 export const INDEX_FILE = path.resolve(BACKEND_DIR, process.env.INDEX_FILE || 'data/INDEKS.csv');
 export const INDEX_DIR_FILE = path.resolve(BACKEND_DIR, process.env.INDEX_DIR_FILE || 'data/INDEKS_DIR.csv');
-export const METADATA_DB_PATH_IS_EXPLICIT =
-  typeof process.env.METADATA_DB_PATH === 'string' && process.env.METADATA_DB_PATH.trim().length > 0;
-export const METADATA_DB_PATH = path.resolve(
-  BACKEND_DIR,
-  process.env.METADATA_DB_PATH || 'data/metadata.sqlite'
-);
+export const METADATA_FILE = path.resolve(BACKEND_DIR, process.env.METADATA_FILE || 'data/METADATA.csv');
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SERVICE_TOKENS_RAW = process.env.SERVICE_TOKENS || process.env.SERVICE_TOKEN || '';
 export const SERVICE_TOKENS = SERVICE_TOKENS_RAW

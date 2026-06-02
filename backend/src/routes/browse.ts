@@ -3,7 +3,7 @@ import path from 'path';
 import fs from 'fs';
 import { FILES_ROOT, GITHUB_PR_URL } from '../config';
 import { safePath, formatSize, isPreviewable, getPreviewType, countFiles, checkAdmin, isMetadataFileName } from '../helpers';
-import { readDbMetadataByRelPath } from '../metadataDb';
+import { getMetadataByRelPath } from '../metadataCache';
 import { getDescription } from '../search';
 
 function detectLinkService(url: string): string {
@@ -60,7 +60,7 @@ router.get('/api/browse/:path(*)?', (req, res) => {
           sizeFormatted: formatSize(stat.size),
           previewable: isPreviewable(ext), previewType,
           description: getDescription(rel),
-          metadata: readDbMetadataByRelPath(rel),
+          metadata: getMetadataByRelPath(rel),
         };
 
         // For link files, parse URL and detect service
