@@ -20,6 +20,13 @@ import { logMetadataDbStartupStatus } from './metadataDb';
 // Ensure temp uploads/zip dir exists
 fs.mkdirSync(TEMP_DIR, { recursive: true });
 
+// Check if FILES_ROOT exists
+if (fs.existsSync(FILES_ROOT)) {
+  console.log(`[startup] FILES_ROOT exists: ${FILES_ROOT}`);
+} else {
+  console.warn(`[startup] WARNING: FILES_ROOT does not exist: ${FILES_ROOT}`);
+}
+
 // Pre-load search index into memory for fast queries.
 // If index files are missing on startup, build them first.
 if (!fs.existsSync(INDEX_FILE) || !fs.existsSync(INDEX_DIR_FILE)) {

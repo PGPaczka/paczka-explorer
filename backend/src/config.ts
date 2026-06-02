@@ -1,22 +1,24 @@
 import path from 'path';
 import dotenv from 'dotenv';
 
-// Project root is 3 levels up from dist (dist/config.js -> backend -> fileserver -> root)
-const PROJECT_ROOT = path.resolve(__dirname, '..', '..', '..');
-dotenv.config({ path: path.join(PROJECT_ROOT, '.env') });
+const BACKEND_DIR = path.resolve(__dirname, '..');
+const FILESERVER_DIR = path.resolve(BACKEND_DIR, '..');
 
-export const FILES_ROOT = path.resolve(PROJECT_ROOT, process.env.FILES_ROOT || 'Paczki INFA - Uporządkowane');
+// Load fileserver-specific .env
+dotenv.config({ path: path.join(FILESERVER_DIR, '.env') });
+
+export const FILES_ROOT = path.resolve(BACKEND_DIR, process.env.FILES_ROOT || 'paczka');
 export const TEMP_DIR = path.resolve(
-  PROJECT_ROOT,
-  process.env.TEMP_DIR || 'fileserver/backend/temp'
+  BACKEND_DIR,
+  process.env.TEMP_DIR || 'temp'
 );
-export const INDEX_FILE = path.resolve(PROJECT_ROOT, process.env.INDEX_FILE || 'INDEKS.csv');
-export const INDEX_DIR_FILE = path.resolve(PROJECT_ROOT, process.env.INDEX_DIR_FILE || 'INDEKS_DIR.csv');
+export const INDEX_FILE = path.resolve(BACKEND_DIR, process.env.INDEX_FILE || 'data/INDEKS.csv');
+export const INDEX_DIR_FILE = path.resolve(BACKEND_DIR, process.env.INDEX_DIR_FILE || 'data/INDEKS_DIR.csv');
 export const METADATA_DB_PATH_IS_EXPLICIT =
   typeof process.env.METADATA_DB_PATH === 'string' && process.env.METADATA_DB_PATH.trim().length > 0;
 export const METADATA_DB_PATH = path.resolve(
-  PROJECT_ROOT,
-  process.env.METADATA_DB_PATH || 'metadata-generator/metadata.sqlite'
+  BACKEND_DIR,
+  process.env.METADATA_DB_PATH || 'data/metadata.sqlite'
 );
 export const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD || 'admin123';
 const SERVICE_TOKENS_RAW = process.env.SERVICE_TOKENS || process.env.SERVICE_TOKEN || '';

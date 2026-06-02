@@ -11,6 +11,10 @@ pnpm-debug.log
 dist/
 out/
 build/
+*.js
+*.js.map
+*.d.ts
+*.d.ts.map
 
 # Environment variables
 .env
@@ -28,3 +32,5 @@ build/
 
 # Node specific
 package-lock.json
+temp/
+data/
