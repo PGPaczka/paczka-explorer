@@ -7,11 +7,13 @@ import LightMode from '@mui/icons-material/LightMode'
 import BrowsePage from './pages/BrowsePage'
 import AdminPage from './pages/AdminPage'
 import LoginPage from './pages/LoginPage'
+import MCPServerPage from './pages/MCPServerPage'
+import HowToAddPage from './pages/HowToAddPage'
+import Header from './components/Header'
 import { useThemeMode } from './ThemeContext'
 import { fetchFilesRootGit } from './api'
 
 function Footer() {
-  const { mode, toggleMode } = useThemeMode()
   const [filesRootGit, setFilesRootGit] = useState(null)
 
   useEffect(() => {
@@ -65,25 +67,24 @@ function Footer() {
           </>
         )}
       </Typography>
-      <Tooltip title={mode === 'dark' ? 'Jasny motyw' : 'Ciemny motyw'}>
-        <IconButton size="small" onClick={toggleMode} color="inherit">
-          {mode === 'dark' ? <LightMode fontSize="small" /> : <DarkMode fontSize="small" />}
-        </IconButton>
-      </Tooltip>
     </Box>
   )
 }
 
 export default function App() {
   return (
-    <>
-      <Routes>
-        <Route path="/admin/login" element={<LoginPage />} />
-        <Route path="/admin" element={<AdminPage />} />
-        <Route path="/browse/*" element={<BrowsePage />} />
-        <Route path="*" element={<BrowsePage />} />
-      </Routes>
+    <Box sx={{ display: 'flex', flexDirection: 'column', minHeight: '100vh' }}>
+      <Header />
+      <Box sx={{ flex: 1 }}>
+        <Routes>
+          <Route path="/admin/login" element={<LoginPage />} />
+          <Route path="/admin" element={<AdminPage />} />
+          <Route path="/mcp-server" element={<MCPServerPage />} />
+          <Route path="/how-to-add" element={<HowToAddPage />} />
+          <Route path="/*" element={<BrowsePage />} />
+        </Routes>
+      </Box>
       <Footer />
-    </>
+    </Box>
   )
 }
