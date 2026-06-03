@@ -64,29 +64,17 @@ export function loadMetadataCache(force = false): void {
 
 /**
  * Get metadata entry by relative path.
- * This will return exact match or similar matches (basename, suffix pattern).
+ * Only matches exact paths - no basename or pattern matching.
+ * This prevents /test.txt from matching /Ogolne/test.txt
  */
 export function getMetadataByRelPath(relPath: string): MetadataEntry | null {
   if (!_loaded) loadMetadataCache();
 
   const key = normalizeRelPath(relPath);
-  const basename = path.posix.basename(key);
 
-  // Try exact match first
+  // Try exact match only
   if (_cache.has(key)) {
     return _cache.get(key) || null;
-  }
-
-  // Try basename match
-  if (_cache.has(basename)) {
-    return _cache.get(basename) || null;
-  }
-
-  // Try suffix pattern match (ends with .../<relPath>)
-  for (const [cachedKey, entry] of _cache.entries()) {
-    if (cachedKey.endsWith(`/${key}`) || cachedKey === key) {
-      return entry;
-    }
   }
 
   return null;
