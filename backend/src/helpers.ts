@@ -365,6 +365,7 @@ export async function createUploadPullRequest(
   targetPath: string,
   uploaderName: string,
   files: UploadPrFileInput[],
+  description = '',
   repoPath = FILES_ROOT
 ): Promise<UploadPrResult> {
   if (_uploadPrInProgress) {
@@ -434,7 +435,7 @@ export async function createUploadPullRequest(
     }
 
     const commitTitle = `upload: ${files.length} plik(ow) od ${uploaderName || 'Anonim'}`;
-    const commitBody = `Target path: ${targetPath || '/'}\nUploaded via fileserver backend.`;
+    const commitBody = `Target path: ${targetPath || '/'}\nUploaded via fileserver backend.\n${description ? `\nOpis:\n${description}` : ''}`;
     execFileSync('git', ['commit', '-m', `${commitTitle}\n\n${commitBody}`], { cwd: repoPath, stdio: 'pipe' });
     execFileSync('git', ['push', '-u', 'origin', branchName], { cwd: repoPath, stdio: 'pipe', timeout: 120000 });
     pushedToRemote = true;
@@ -446,6 +447,7 @@ export async function createUploadPullRequest(
       `- Uploader: ${uploaderName || 'Anonim'}`,
       `- Target path: ${targetPath || '/'}`,
       `- Files: ${files.map((f) => `\`${f.originalName}\``).join(', ')}`,
+      ...(description ? ['', `- Description:\n${description}`] : []),
       '',
       'PR utworzony automatycznie przez backend fileserver.',
     ].join('\n');

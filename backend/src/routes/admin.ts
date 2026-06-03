@@ -50,13 +50,14 @@ router.post('/api/upload', rateLimitUpload, upload.array('file', MAX_FILES_PER_U
 
   const targetPath = req.body.target_path || '';
   const uploaderName = req.body.uploader || 'Anonim';
+  const description = req.body.description || '';
   const uploadedFiles = files.map((f) => ({
     originalName: f.originalname,
     tempPath: f.path,
     size: f.size,
   }));
 
-  createUploadPullRequest(targetPath, uploaderName, uploadedFiles)
+  createUploadPullRequest(targetPath, uploaderName, uploadedFiles, description)
     .then((result) => {
       if (!result.success) {
         return res.status(500).json({ detail: result.output });

@@ -43,10 +43,11 @@ export async function logout() {
   return res.json()
 }
 
-export async function uploadFiles(files, targetPath, uploader) {
+export async function uploadFiles(files, targetPath, uploader, description = '') {
   const formData = new FormData()
   formData.append('target_path', targetPath)
   formData.append('uploader', uploader)
+  formData.append('description', description)
   for (const f of files) {
     formData.append('file', f)
   }

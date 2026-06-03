@@ -81,6 +81,15 @@ export default function HowToAddPage() {
                 secondary="System wyświetli komunikat o sukcesie po zakończeniu wgrywania"
               />
             </ListItem>
+            <ListItem>
+              <ListItemIcon>
+                <InfoIcon sx={{ color: 'info.main' }} />
+              </ListItemIcon>
+              <ListItemText
+                primary="Dodaj opcjonalny opis"
+                secondary="Możesz wpisać opis swoich materiałów - będzie widoczny dla użytkowników i w Pull Request"
+              />
+            </ListItem>
           </List>
         </Paper>
 

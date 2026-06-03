@@ -10,6 +10,7 @@ import { uploadFiles } from '../api'
 export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
   const [files, setFiles] = useState([])
   const [uploader, setUploader] = useState('')
+  const [description, setDescription] = useState('')
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState('')
   const inputRef = useRef()
@@ -59,9 +60,10 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
     setLoading(true)
     setError('')
     try {
-      const result = await uploadFiles(files, targetPath, uploader)
+      const result = await uploadFiles(files, targetPath, uploader, description)
       setFiles([])
       setUploader('')
+      setDescription('')
       onClose()
       onSuccess(result)
     } catch (err) {
@@ -74,6 +76,8 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
   const handleClose = () => {
     setFiles([])
     setError('')
+    setUploader('')
+    setDescription('')
     onClose()
   }
 
@@ -137,7 +141,19 @@ export default function UploadDialog({ open, onClose, targetPath, onSuccess }) {
           label="Twoje imię/nick (opcjonalne)"
           value={uploader}
           onChange={(e) => setUploader(e.target.value)}
-          sx={{ mt: 2 }}
+          sx={{ mt: 2, mb: 2 }}
+        />
+
+        <TextField
+          fullWidth
+          multiline
+          rows={3}
+          size="small"
+          label="Opis materiałów (opcjonalnie)"
+          placeholder="np. Notatki z całego semestru, przygotowanie do kolokwium..."
+          value={description}
+          onChange={(e) => setDescription(e.target.value)}
+          sx={{ mb: 2 }}
         />
       </DialogContent>
       <DialogActions>
