@@ -106,6 +106,11 @@ const FileGridEntry = memo(function FileGridEntry({
           {metadata.content_kind_extended}
         </Typography>
       )}
+      {!isDir && metadata?.date && (
+        <Typography variant="caption" color="text.secondary" sx={{ fontSize: '0.65rem', mt: 0.2 }}>
+          {metadata.date}
+        </Typography>
+      )}
 
       {/* Actions */}
       {!isDir && (

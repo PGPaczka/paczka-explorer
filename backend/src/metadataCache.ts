@@ -14,6 +14,7 @@ interface MetadataEntry {
   generated_at: string;
   short_summary: string;
   detailed_summary: string;
+  date?: string | null;
 }
 
 let _cache: Map<string, MetadataEntry> = new Map();

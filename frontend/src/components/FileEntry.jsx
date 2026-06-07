@@ -119,6 +119,16 @@ const FileEntry = memo(function FileEntry({
             {showPath && file.subject && file.subject !== 'Ogólne' && (
               <Chip label={file.subject} size="small" variant="outlined" sx={{ ml: 0.5, height: 18, fontSize: '0.7rem' }} />
             )}
+            {metadata?.date && (
+              <>
+                <Chip
+                  label={metadata.date}
+                  size="small"
+                  variant="outlined"
+                  sx={{ ml: 1, height: 18, fontSize: '0.7rem' }}
+                />
+              </>
+            )}
             {metadata?.short_summary && (
               <>
                 <br />
