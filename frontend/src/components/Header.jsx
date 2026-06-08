@@ -1,4 +1,4 @@
-import React from 'react'
+import React, { useState, useEffect } from 'react'
 import { useNavigate, useLocation } from 'react-router-dom'
 import { AppBar, Toolbar, Tabs, Tab, Box, Container, IconButton, Tooltip, Typography } from '@mui/material'
 import DarkMode from '@mui/icons-material/DarkMode'
@@ -8,12 +8,43 @@ import SearchIcon from '@mui/icons-material/Search'
 import SmartToyIcon from '@mui/icons-material/SmartToy'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
+import InstallMobileIcon from '@mui/icons-material/InstallMobile'
 import { useThemeMode } from '../ThemeContext'
+
+let deferredPrompt = null
 
 export default function Header() {
   const navigate = useNavigate()
   const location = useLocation()
   const { mode, toggleMode } = useThemeMode()
+  const [canInstall, setCanInstall] = useState(false)
+
+  useEffect(() => {
+    const handler = (e) => {
+      e.preventDefault()
+      deferredPrompt = e
+      setCanInstall(true)
+    }
+    window.addEventListener('beforeinstallprompt', handler)
+
+    // Hide button if app is already installed
+    window.addEventListener('appinstalled', () => {
+      setCanInstall(false)
+      deferredPrompt = null
+    })
+
+    return () => window.removeEventListener('beforeinstallprompt', handler)
+  }, [])
+
+  const handleInstall = async () => {
+    if (!deferredPrompt) return
+    deferredPrompt.prompt()
+    const { outcome } = await deferredPrompt.userChoice
+    if (outcome === 'accepted') {
+      setCanInstall(false)
+    }
+    deferredPrompt = null
+  }
 
   const tabs = [
     { label: 'Przeglądaj', path: '/', icon: SearchIcon },
@@ -143,22 +174,39 @@ export default function Header() {
             </Tabs>
           </Box>
 
-          {/* Theme Toggle */}
-          <Tooltip title={mode === 'dark' ? 'Jasny motyw' : 'Ciemny motyw'}>
-            <IconButton 
-              onClick={toggleMode} 
-              color="inherit" 
-              sx={{ 
-                flexShrink: 0,
-                color: 'primary.main',
-                '&:hover': {
-                  backgroundColor: 'rgba(0, 0, 0, 0.04)'
-                }
-              }}
-            >
-              {mode === 'dark' ? <LightMode /> : <DarkMode />}
-            </IconButton>
-          </Tooltip>
+          {/* Install PWA & Theme Toggle */}
+          <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+            {canInstall && (
+              <Tooltip title="Zainstaluj aplikację">
+                <IconButton
+                  onClick={handleInstall}
+                  color="inherit"
+                  sx={{
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                    }
+                  }}
+                >
+                  <InstallMobileIcon />
+                </IconButton>
+              </Tooltip>
+            )}
+            <Tooltip title={mode === 'dark' ? 'Jasny motyw' : 'Ciemny motyw'}>
+              <IconButton 
+                onClick={toggleMode} 
+                color="inherit" 
+                sx={{ 
+                  color: 'primary.main',
+                  '&:hover': {
+                    backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                  }
+                }}
+              >
+                {mode === 'dark' ? <LightMode /> : <DarkMode />}
+              </IconButton>
+            </Tooltip>
+          </Box>
         </Toolbar>
       </Container>
     </AppBar>
