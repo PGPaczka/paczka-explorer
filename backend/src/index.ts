@@ -76,7 +76,7 @@ app.use(adminRoutes);
 
 const FRONTEND_BUILD = path.join(__dirname, '..', '..', 'frontend', 'dist');
 if (fs.existsSync(FRONTEND_BUILD)) {
-  app.use('/assets', express.static(path.join(FRONTEND_BUILD, 'assets')));
+  app.use(express.static(FRONTEND_BUILD, { index: false }));
   app.get('*', (_req, res) => {
     const index = path.join(FRONTEND_BUILD, 'index.html');
     if (fs.existsSync(index)) return res.sendFile(index);
