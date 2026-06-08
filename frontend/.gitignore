@@ -9,6 +9,7 @@ pnpm-debug.log
 
 # Build outputs
 dist/
+dev-dist/
 out/
 build/
 
