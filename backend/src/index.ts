@@ -77,7 +77,12 @@ app.use(adminRoutes);
 const FRONTEND_BUILD = path.join(__dirname, '..', '..', 'frontend', 'dist');
 if (fs.existsSync(FRONTEND_BUILD)) {
   app.use(express.static(FRONTEND_BUILD, { index: false }));
+  // SPA fallback – serve index.html for navigation requests, but NOT for backend-handled routes
+  const backendPrefixes = ['/view/', '/download/', '/download-folder/', '/api/', '/indeks.csv', '/structure'];
   app.get('*', (_req, res) => {
+    if (backendPrefixes.some(prefix => _req.path.startsWith(prefix) || _req.path === prefix.replace(/\/$/, ''))) {
+      return res.status(404).json({ detail: 'Not found' });
+    }
     const index = path.join(FRONTEND_BUILD, 'index.html');
     if (fs.existsSync(index)) return res.sendFile(index);
     res.status(404).json({ detail: 'Frontend not built' });

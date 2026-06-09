@@ -1,5 +1,5 @@
 import React, { useEffect, useState } from 'react'
-import { Routes, Route } from 'react-router-dom'
+import { Routes, Route, useLocation } from 'react-router-dom'
 import { Box, Typography, Link, IconButton, Tooltip } from '@mui/material'
 import GitHub from '@mui/icons-material/GitHub'
 import DarkMode from '@mui/icons-material/DarkMode'
@@ -12,6 +12,15 @@ import HowToAddPage from './pages/HowToAddPage'
 import Header from './components/Header'
 import { useThemeMode } from './ThemeContext'
 import { fetchFilesRootGit } from './api'
+
+// Forces a full page reload so the browser fetches directly from the backend
+// (bypassing React Router and Service Worker navigation handling)
+function BackendRedirect() {
+  useEffect(() => {
+    window.location.replace(window.location.href)
+  }, [])
+  return null
+}
 
 function Footer() {
   const [filesRootGit, setFilesRootGit] = useState(null)
@@ -81,6 +90,9 @@ export default function App() {
           <Route path="/admin" element={<AdminPage />} />
           <Route path="/mcp-server" element={<MCPServerPage />} />
           <Route path="/how-to-add" element={<HowToAddPage />} />
+          <Route path="/view/*" element={<BackendRedirect />} />
+          <Route path="/download/*" element={<BackendRedirect />} />
+          <Route path="/download-folder/*" element={<BackendRedirect />} />
           <Route path="/*" element={<BrowsePage />} />
         </Routes>
       </Box>
