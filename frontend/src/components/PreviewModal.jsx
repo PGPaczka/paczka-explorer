@@ -308,6 +308,10 @@ export default function PreviewModal({ open, onClose, files, index, onIndexChang
       onClose={onClose}
       maxWidth="lg"
       fullWidth
+      onDragEnter={(e) => { e.stopPropagation(); e.preventDefault() }}
+      onDragOver={(e) => { e.stopPropagation(); e.preventDefault() }}
+      onDragLeave={(e) => { e.stopPropagation() }}
+      onDrop={(e) => { e.stopPropagation(); e.preventDefault() }}
       PaperProps={{
         sx: {
           m: { xs: 0.5, sm: 2 },
