@@ -266,6 +266,16 @@ function PreviewSlide({ file, getUrl, visible, viewMode }) {
           )}
         </Box>
       )}
+
+      {file.previewType === 'anki' && (
+        <Box sx={{ width: '100%', height: '70vh' }}>
+          <iframe
+            src={`${import.meta.env.VITE_ANKI_VIEWER_URL || ''}/?url=${encodeURIComponent(url)}`}
+            style={{ width: '100%', height: '100%', border: 'none', borderRadius: '8px' }}
+            title={file.name}
+          />
+        </Box>
+      )}
     </Box>
   )
 }

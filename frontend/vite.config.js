@@ -106,7 +106,7 @@ export default defineConfig({
       }
     })
   ],
-  envDir: '.',
+  envDir: '..',
   server: {
     port: 3000,
     proxy: {

@@ -17,6 +17,7 @@ const MIME_TYPES: Record<string, string> = {
   '.doc':'application/msword','.ppt':'application/vnd.ms-powerpoint','.xls':'application/vnd.ms-excel',
   '.mp4':'video/mp4','.webm':'video/webm','.mov':'video/quicktime',
   '.wav':'audio/wav','.mp3':'audio/mpeg','.ogg':'audio/ogg','.flac':'audio/flac',
+  '.apkg':'application/octet-stream',
 };
 
 router.get('/view/:path(*)', (req, res) => {

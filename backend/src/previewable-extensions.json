@@ -71,5 +71,6 @@
   "markdown": [".md"],
   "link": [".url", ".webloc"],
   "video": [".mp4", ".webm", ".mov"],
-  "audio": [".wav", ".mp3", ".ogg", ".flac"]
+  "audio": [".wav", ".mp3", ".ogg", ".flac"],
+  "anki": [".apkg"]
 }
