@@ -9,6 +9,7 @@ import SmartToyIcon from '@mui/icons-material/SmartToy'
 import CloudUploadIcon from '@mui/icons-material/CloudUpload'
 import AdminPanelSettingsIcon from '@mui/icons-material/AdminPanelSettings'
 import InstallMobileIcon from '@mui/icons-material/InstallMobile'
+import StyleIcon from '@mui/icons-material/Style'
 import { useThemeMode } from '../ThemeContext'
 
 let deferredPrompt = null
@@ -176,6 +177,25 @@ export default function Header() {
 
           {/* Install PWA & Theme Toggle */}
           <Box sx={{ display: 'flex', alignItems: 'center', gap: 0.5, flexShrink: 0 }}>
+            {import.meta.env.VITE_ANKI_VIEWER_URL && (
+              <Tooltip title="Fiszki Anki">
+                <IconButton
+                  component="a"
+                  href={import.meta.env.VITE_ANKI_VIEWER_URL}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  color="inherit"
+                  sx={{
+                    color: 'primary.main',
+                    '&:hover': {
+                      backgroundColor: 'rgba(0, 0, 0, 0.04)'
+                    }
+                  }}
+                >
+                  <StyleIcon />
+                </IconButton>
+              </Tooltip>
+            )}
             {canInstall && (
               <Tooltip title="Zainstaluj aplikację">
                 <IconButton
