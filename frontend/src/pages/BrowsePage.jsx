@@ -26,6 +26,7 @@ import FilterAltOutlined from '@mui/icons-material/FilterAltOutlined'
 import SwapVert from '@mui/icons-material/SwapVert'
 import Home from '@mui/icons-material/Home'
 import { fetchBrowse, fetchBrowseZip, fetchAuthStatus, searchFiles, getDownloadUrl, getViewUrl, adminDeleteFile, adminDeleteFolder, adminRename, prepareZipFolder, prepareZipSelected } from '../api'
+import { marked } from 'marked'
 import UploadDialog from '../components/UploadDialog'
 import PreviewModal from '../components/PreviewModal'
 import ZipProgressDialog from '../components/ZipProgressDialog'
@@ -1108,6 +1109,16 @@ export default function BrowsePage() {
             </Typography>
           )}
         </Box>
+      )}
+
+      {/* Readme */}
+      {data.readme && (
+        <Paper variant="outlined" sx={{ mb: 2, p: 2, '& h1,& h2,& h3': { mt: 1, mb: 0.5 }, '& p': { my: 0.5 }, '& a': { color: 'primary.main' }, '& ul,& ol': { pl: 3 } }}>
+          <Box
+            sx={{ typography: 'body2' }}
+            dangerouslySetInnerHTML={{ __html: marked.parse(data.readme) }}
+          />
+        </Paper>
       )}
 
       {/* Upload section */}

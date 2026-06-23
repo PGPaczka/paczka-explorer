@@ -88,7 +88,22 @@ router.get('/api/browse/:path(*)?', (req, res) => {
     breadcrumb.push({ name: parts[i], path: parts.slice(0, i + 1).join('/') });
   }
 
-  res.json({ path: relPath, breadcrumb, dirs, files, isAdmin: checkAdmin(req), githubPrUrl: GITHUB_PR_URL });
+  // Check for readme.md in the current directory
+  let readme: string | null = null;
+  if (fs.statSync(target).isDirectory()) {
+    const readmeNames = ['readme.md', 'README.md', 'Readme.md', 'README.MD'];
+    for (const name of readmeNames) {
+      const readmePath = path.join(target, name);
+      if (fs.existsSync(readmePath)) {
+        try {
+          readme = fs.readFileSync(readmePath, 'utf-8');
+        } catch {}
+        break;
+      }
+    }
+  }
+
+  res.json({ path: relPath, breadcrumb, dirs, files, readme, isAdmin: checkAdmin(req), githubPrUrl: GITHUB_PR_URL });
 });
 
 export default router;
